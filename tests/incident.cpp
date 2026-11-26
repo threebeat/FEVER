@@ -110,6 +110,8 @@ void handlingRange(){
     g.choose(4);g.tick({}, {},dt);V d=norm(platesAt[1]-g.camera);g.yaw=std::atan2(d.x,d.z);g.pitch=std::asin(d.y);g.shoot();REQUIRE(g.plateHits>=1);
 }
 void inputTiming(){
+    Particles ejected;std::vector<Event> landings;ejected.eject({0,1.2f,0},{1,0,0},0,false);
+    for(int j=0;j<155;j++)ejected.update(dt,landings);REQUIRE(landings.size()==1&&landings[0].sound==Sound::Brass&&landings[0].pos.y<.03f);
     REQUIRE(len(radialStick(.06f,.04f,.13f))==0);V diagonal=radialStick(.71f,.71f,.13f);
     REQUIRE(std::abs(diagonal.x-diagonal.z)<.0001f&&std::abs(len(diagonal)-1)<.001f);
     V outer=stickTurn({1,0,0},1,1);

@@ -18,11 +18,15 @@ void Particles::discharge(V muzzle,V d,float force){
         p.radius=force*(flame?.024f+v*.044f:.018f+v*.023f);p.total=p.life=flame?.032f+.032f*v:.22f+.15f*v;p.floor=muzzle.y-.48f;}
 }
 void Particles::eject(V at,V right,float ground,bool shell){
-    auto& p=pool[next++%pool.size()];p.kind=shell?ParticleKind::Shell:ParticleKind::Casing;p.p=at;p.v=right*(1.37f+.58f*random())+V{0,1.03f+.28f*random(),0};p.life=p.total=1.7f;p.floor=ground;p.radius=shell?.025f:.010f;
+    auto& p=pool[next++%pool.size()];p.kind=shell?ParticleKind::Shell:ParticleKind::Casing;p.landed=false;p.p=at;p.v=right*(1.37f+.58f*random())+V{0,1.03f+.28f*random(),0};p.life=p.total=1.7f;p.floor=ground;p.radius=shell?.025f:.010f;
 }
-void Particles::update(float dt){
+void Particles::update(float dt,std::vector<Event>& events){
+    int clinks=0;
     for(auto& a:pool)if(a.life>0){a.life-=dt;a.p=a.p+a.v*dt;a.v.y-=(a.kind==ParticleKind::Smoke?-.88f:a.kind==ParticleKind::Flame?0.f:a.kind==ParticleKind::Dust?2.4f:8.9f)*dt;
-        if(a.p.y<a.floor+.018f){a.p.y=a.floor+.018f;a.v.y=std::abs(a.v.y)*.23f;a.v.x*=.6f;a.v.z*=.6f;}}
+        if(a.p.y<a.floor+.018f){a.p.y=a.floor+.018f;
+            if(!a.landed&&(a.kind==ParticleKind::Casing||a.kind==ParticleKind::Shell)){
+                a.landed=true;if(clinks++<4)events.push_back({Sound::Brass,a.p,Bus::World,a.kind==ParticleKind::Shell?.83f:.55f});}
+            a.v.y=std::abs(a.v.y)*.23f;a.v.x*=.6f;a.v.z*=.6f;}}
 }
 const std::vector<Barrier>& audioBarriers(){
     static const std::vector<Barrier> surfaces={

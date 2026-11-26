@@ -215,6 +215,11 @@ std::vector<Instance> sceneInstances(const Game& g,bool shadows){
         p.action=enter*(1-exchange);p.reaction=exchange*leave;
         float reload=enter*leave;
         p.p=p.p-p.y*(.024f*reload);
+        if(g.reloadTime>0&&g.stress>.07f){
+            // The grip settles as the magazine seats. The simulation owns that single inventory event.
+            float weight=reload*g.stress*(1-smooth(.68f,.92f,phase));
+            p.p=p.p+p.x*(weight*(.010f*std::sin(g.time*16.3f)+.004f*std::sin(g.time*23.8f)))-p.y*(.013f*weight);
+            p.action=clamp(p.action+.032f*weight*std::sin(phase*15));}
         float downward=smooth(.70f,1.43f,-g.camPitch)*(1-g.aim);
         float quiet=1-smooth(0,.40f,g.pace);
         float breath=std::sin(g.time*(2.0f+.40f*g.stress))*(.0025f+.0025f*g.stress)*(1-.72f*g.aim);

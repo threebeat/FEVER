@@ -196,7 +196,7 @@ void Game::refreshCamera(const Input& in,const Prefs& prefs,float dt){
 }
 void Game::tick(const Input& in,const Prefs& prefs,float dt){
     if(!(dt>0))return;
-    time+=dt;age+=dt;particles.update(dt);hostFlinch=std::max(0.f,hostFlinch-dt*3.4f);tickScript(dt);
+    time+=dt;age+=dt;particles.update(dt,events);hostFlinch=std::max(0.f,hostFlinch-dt*3.4f);tickScript(dt);
     if(stage==Stage::Lost)return;
     if(stage==Stage::Filed){if(recording==Recording::Animal&&age>4.5f)say("MI_015");return;}
     if(stage==Stage::Flight){patrolTick(in,prefs,dt);return;}
