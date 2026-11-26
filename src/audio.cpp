@@ -1,4 +1,5 @@
 #include "audio.hpp"
+#include "night.hpp"
 #include <fstream>
 #include <cstring>
 namespace fever {
@@ -22,8 +23,19 @@ std::vector<float> readMono(const std::string& path){
     }return {};
 }
 }
-Spatial acousticPath(V p,float yaw,Zone room,V src,Bus bus,float door){
+Spatial acousticPath(V p,float yaw,Zone room,V src,Bus bus,float door,Recording recording){
     if(bus!=Bus::World)return {.68f,.68f,bus==Bus::Radio?3200.f:10500.f,bus==Bus::Radio?.015f:.04f};
+    if(recording!=Recording::Animal || (room==Zone::Yard&&p.z>51)){
+        auto region=[&](V q){if(recording==Recording::Grey)return rect(q,0,14.5f,8,9)?1:0;
+            if(recording==Recording::House){for(int j=0;j<6;j++){const auto& r=houseRooms[j];if(rect(q,r.center.x,r.center.z,r.w,r.d)&&std::abs(q.y-r.center.y-1.1f)<2.1f)return j+1;}return q.z<0?0:7;}
+            return 0;};
+        float distance=len(src-p),pan=clamp(dot(norm(src-p),right(yaw)),-.93f,.93f);
+        int from=region(p),to=region(src);float transmission=1,high=14600;
+        if(from!=to){bool closed=door<.8f&&(from==0||to==0);transmission=closed?.27f:.57f;high=closed?780.f:2900.f;
+            if(std::abs(p.y-src.y)>2.4f){transmission*=.65f;high=1100;}}
+        float gain=transmission/(1+.16f*distance+.007f*distance*distance);
+        float send=room==Zone::Yard?.034f:room==Zone::Isolation?.39f:room==Zone::Kennels?.26f:.16f;
+        return {gain*std::sqrt(.5f*(1-pan)),gain*std::sqrt(.5f*(1+pan)),high,send};}
     int a=int(room==Zone::Cabin?Zone::Yard:room)-1,b=int(zone(src))-1;V perceived=src;
     float path=len(src-p),trans=1,hz=14500;
     if(a!=b){
@@ -60,7 +72,9 @@ Mixer::Mixer():delayL(4801),delayR(6311){
     {Sound::Hum,.85f,99,4,.09f,.24f},{Sound::Gate,1.36f,471,4.1f,.4f,.67f},{Sound::Lash,.67f,94,5,.81f,.69f},
     {Sound::Round,.38f,88,18,.79f,.98f},{Sound::Strike,.26f,630,18,.8f,.52f},{Sound::Drop,.53f,48,8,.50f,.70f},
     {Sound::Pulse,.34f,54,16,.15f,.45f},{Sound::Host,.94f,54,4.4f,.70f,.49f},{Sound::Footfall,.31f,82,16,.65f,.60f},
-    {Sound::Rotors,1.f,27,3,.20f,.4f},{Sound::Beep,.17f,372,14,.03f,.22f},{Sound::Seat,.14f,162,27,.76f,.48f},{Sound::Latch,.11f,922,36,.69f,.32f},{Sound::Reload,.21f,536,19,.72f,.34f},{Sound::Wind,.8f,52,4,.96f,.31f}};
+    {Sound::Rotors,1.f,27,3,.20f,.4f},{Sound::Beep,.17f,372,14,.03f,.22f},{Sound::Seat,.14f,162,27,.76f,.48f},{Sound::Latch,.11f,922,36,.69f,.32f},{Sound::Reload,.21f,536,19,.72f,.34f},{Sound::Wind,.8f,52,4,.96f,.31f},{Sound::Turn,.11f,440,52,.36f,.27f},{Sound::Knock,.77f,118,20,.30f,.64f},
+    {Sound::Snow,.38f,71,9,.93f,.60f},{Sound::Glass,.69f,1100,9,.64f,.69f},{Sound::Brass,.28f,1880,23,.15f,.17f},
+    {Sound::Blast,.92f,52,6,.74f,.96f},{Sound::Howl,1.75f,182,1.8f,.28f,.74f}};
     for(auto r:list){
         auto& out=effects[r.id];out.resize(size_t(r.seconds*rate));float lp=0,last=0,angle=0;
         for(size_t i=0;i<out.size();i++){
@@ -71,6 +85,11 @@ Mixer::Mixer():delayL(4801),delayR(6311){
             float val=(voiced*(1-r.noise)+r.noise*texture)*env1;
             if(r.id==Sound::Gate)val+=.18f*std::sin(t*6351)*std::exp(-7*t)+.25f*lp*std::exp(-9*std::abs(t-.21f));
             if(r.id==Sound::Round)val+=n*.84f*std::exp(-110*t)+std::sin(t*245)*.49f*std::exp(-17*t);
+            if(r.id==Sound::Knock)val+=.78f*(std::sin(t*708)+lp)*std::exp(-34*std::abs(t-.24f))+.54f*std::sin(t*582)*std::exp(-36*std::abs(t-.48f));
+            if(r.id==Sound::Glass)val+=.25f*std::sin(t*7066+std::sin(t*1216))*std::exp(-5*t);
+            if(r.id==Sound::Snow)val+=.8f*(n-lp)*std::abs(std::sin(t*119+lp))*std::exp(-9*t);
+            if(r.id==Sound::Howl)val=std::sin(t*(880+318*std::sin(t*1.6f))+std::sin(t*229)*2)*std::sin(pi*t/r.seconds)*.48f+lp*.62f;
+            if(r.id==Sound::Blast)val+=.83f*std::sin(t*(185-85*t))*std::exp(-4*t)+n*std::exp(-52*t);
             if(r.id==Sound::Reload)val+=n*.55f*std::exp(-65*std::abs(t-.38f));
             out[i]=r.level*val*std::min(1.f,t*(r.id==Sound::Round?6000:620))*std::min(1.f,(out.size()-i)/170.f);
         }
@@ -94,7 +113,7 @@ void Mixer::play(const Event& e){
 }
 MixState mixState(const Game& g,const Prefs& p,bool active){
     MixState m;m.listener=g.camera;m.yaw=g.camYaw;m.door=g.door;m.pace=g.pace;m.turn=g.turnRate;m.stress=g.stress;m.impact=g.impact;
-    m.rotor=g.stage==Stage::Flight?1:1-smooth(12,25,g.time);m.volume=p.volume;m.recoverySeconds=g.tuning.ring;m.room=g.room();m.night=p.nightMix;m.active=active;
+    m.recording=g.recording;m.engine=g.stage==Stage::Flight&&g.recording!=Recording::Range?1-smooth(11,14.5f,g.age):0;m.volume=p.volume;m.recoverySeconds=g.tuning.ring;m.room=g.room();m.night=p.nightMix;m.active=active;
     for(int i=0;i<3;i++)m.crew[i]=g.crew[i].pos+V{0,1.48f,0};return m;
 }
 void Mixer::render(int16_t* out,int frames,const MixState& m){
@@ -107,9 +126,9 @@ void Mixer::renderBlock(int16_t* out,int frames,const MixState& m){
     std::array<float,blockSize> dryL{},dryR{},wet{};
     for(auto& v:voices){if(!v.pcm)continue;V pos=v.e.pos;
         if(v.e.sound==Sound::Voice&&v.e.speaker>=Speaker::Cole&&v.e.speaker<=Speaker::Bell)pos=m.crew[int(v.e.speaker)-1];
-        auto path=acousticPath(m.listener,m.yaw,m.room,pos,v.e.bus,m.door);
+        auto path=acousticPath(m.listener,m.yaw,m.room,pos,v.e.bus,m.door,m.recording);
         if(v.at==0 && v.e.bus!=Bus::Radio){
-            const float transient=v.e.sound==Sound::Round?1.f:v.e.sound==Sound::Gate?.55f:0.f;
+            const float transient=v.e.sound==Sound::Blast?1.25f:v.e.sound==Sound::Round?1.f:v.e.sound==Sound::Gate?.55f:0.f;
             const float received=std::hypot(path.left,path.right)*v.e.gain;
             const float roomGain=m.room==Zone::Yard?.76f:1.f;
             const float brightness=.55f+.45f*std::sqrt(path.cutoff/14500.f);
@@ -132,7 +151,7 @@ void Mixer::renderBlock(int16_t* out,int frames,const MixState& m){
         if(m.active){
             float thump=std::exp(-42*heart)+.50f*std::exp(-55*std::abs(heart-.16f));
             bed=wind*(.038f+.16f*m.pace+.11f*m.turn)+thump*std::sin(heart*154)*m.stress*.088f;
-            bed+=m.rotor*(.07f+.18f*std::pow(std::max(0.f,std::sin(phase)),4.f))*(prevNoise+.47f*std::sin(phase*2));
+            bed+=m.engine*(.032f*std::sin(phase*2)+.014f*std::sin(phase*4)+.087f*wind+.023f*prevNoise);
             if(m.room!=Zone::Yard)bed+=.011f*std::sin((clock%48000)*2*pi*60/rate);
         }
         size_t l=wi%delayL.size(),r=wi%delayR.size();float echoL=delayL[l],echoR=delayR[r];

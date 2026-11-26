@@ -8,6 +8,12 @@ enum Mat {Plaster,Wood,Metal,Fabric,Hide,Aggregate,Enamel,Stone,Warm,Cold,Red,Bl
 struct Pose {V p{},x={1,0,0},y={0,1,0},z={0,0,1};float morph=0,kneel=0,action=0,reaction=0,bolt=0,idle=0;};
 struct Instance {std::string id;Pose pose;int lodKey=0;};
 struct Lamp {V p,color;float range;};
+struct Builder;
+void buildLocations(std::map<std::string,MeshData>&);
+void locationInstances(const Game&,std::vector<Instance>&,bool);
+void locationEffects(const Game&,Builder&);
+std::vector<Lamp> callLights(const Game&);
+Pose weaponPose(const Game&);
 bool lowDetailFor(bool previous,bool psx,float metres,float radius,float projection,int width);
 std::vector<Lamp> lamps();
 std::map<std::string,MeshData> buildWorld(const Game& g);

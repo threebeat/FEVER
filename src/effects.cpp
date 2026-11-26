@@ -3,16 +3,26 @@ namespace fever {
 float Particles::random(){seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;return (seed>>8)/16777216.f;}
 void Particles::burst(V p,V dir,Matter mat,int count){
     for(int j=0;j<count;j++){
-        auto& a=pool[next++%pool.size()];a.p=p;float r=random();
+        auto& a=pool[next++%pool.size()];a.p=p;a.floor=std::min(0.f,p.y-.02f);float r=random();
         a.kind=mat==Matter::Steel&&r>.28f?ParticleKind::Spark:mat==Matter::Fluid?ParticleKind::Droplet:mat==Matter::Fabric?ParticleKind::Fibre:ParticleKind::Dust;
         a.total=a.life=(a.kind==ParticleKind::Spark?.16f:.31f)+random()*.51f;
         a.radius=a.kind==ParticleKind::Spark?.006f+random()*.008f:.016f+random()*.031f;
         a.v=dir*(random()*2.9f)+V{(random()-.5f)*2.7f,.56f+random()*1.75f,(random()-.5f)*2.7f};
     }
 }
+void Particles::discharge(V muzzle,V d,float force){
+    V side=norm(cross(d,std::abs(d.y)>.88f?V{0,0,1}:V{0,1,0})),up=cross(side,d);
+    for(int i=0;i<13;i++){auto& p=pool[next++%pool.size()];float v=random(),angle=random()*2*pi;bool flame=i<8;
+        p.kind=flame?ParticleKind::Flame:ParticleKind::Smoke;p.p=muzzle+d*(flame?v*.19f:.05f);
+        p.v=d*(flame?2.9f+v*5:.42f)+(side*std::cos(angle)+up*std::sin(angle))*(flame?1.3f:.31f);
+        p.radius=force*(flame?.024f+v*.044f:.018f+v*.023f);p.total=p.life=flame?.032f+.032f*v:.22f+.15f*v;p.floor=muzzle.y-.48f;}
+}
+void Particles::eject(V at,V right,float ground,bool shell){
+    auto& p=pool[next++%pool.size()];p.kind=shell?ParticleKind::Shell:ParticleKind::Casing;p.p=at;p.v=right*(1.37f+.58f*random())+V{0,1.03f+.28f*random(),0};p.life=p.total=1.7f;p.floor=ground;p.radius=shell?.025f:.010f;
+}
 void Particles::update(float dt){
-    for(auto& a:pool)if(a.life>0){a.life-=dt;a.p=a.p+a.v*dt;a.v.y-=(a.kind==ParticleKind::Dust?2.4f:7.9f)*dt;
-        if(a.p.y<.025f){a.p.y=.025f;a.v.y=std::abs(a.v.y)*.23f;a.v.x*=.6f;a.v.z*=.6f;}}
+    for(auto& a:pool)if(a.life>0){a.life-=dt;a.p=a.p+a.v*dt;a.v.y-=(a.kind==ParticleKind::Smoke?-.88f:a.kind==ParticleKind::Flame?0.f:a.kind==ParticleKind::Dust?2.4f:8.9f)*dt;
+        if(a.p.y<a.floor+.018f){a.p.y=a.floor+.018f;a.v.y=std::abs(a.v.y)*.23f;a.v.x*=.6f;a.v.z*=.6f;}}
 }
 const std::vector<Barrier>& audioBarriers(){
     static const std::vector<Barrier> surfaces={

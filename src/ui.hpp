@@ -1,8 +1,8 @@
 #pragma once
 #include "game.hpp"
 namespace fever {
-enum class Page {Title,Options,Playing,Pause,Filed,Lost,Controls};
-enum class Command {None,Start,Continue,Resume,Options,Controls,Title,Back,Exit,Retry,Profile,Motion,Lens,Grain,Range,Volume};
+enum class Page {Title,Options,Playing,Pause,Filed,Lost,Controls,Archive};
+enum class Command {None,Start,Continue,Resume,Options,Controls,Title,Back,Exit,Retry,Archive,Animal,House,Grey,Practice,Next,Profile,Motion,Lens,Grain,Range,Volume,Look,PadLook,Deadzone};
 struct Tint{float r,g,b,a;};
 struct UIVertex{float x,y,u,v;Tint c;float mode;};
 struct Hit{float x,y,w,h;Command cmd;bool enabled;};

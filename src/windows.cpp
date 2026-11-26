@@ -52,19 +52,22 @@ struct Pad {
     static V stick(SHORT x,SHORT y,float dead){V a={x/32768.f,0,y/32768.f};float l=len(a);if(l<dead)return {};return norm(a)*clamp((l-dead)/(1-dead));}
 };
 struct Saved {
-    Prefs prefs;int cp=-1;fs::path path;
+    Prefs prefs;int cp=-1,call=0,beat=0;fs::path path;
     Saved(){
         wchar_t base[32768];DWORD n=GetEnvironmentVariableW(L"LOCALAPPDATA",base,32768);if(!n||n>=32768)return;
         path=fs::path(base)/L"FEVER"/L"shift.dat";std::ifstream f(path);
         int ver,checkpoint,ps,st,gr,le,night;float vol;
-        if(f>>ver>>checkpoint>>ps>>st>>gr>>le>>night>>vol && ver==1){
-            if(checkpoint==-1||checkpoint==int(Stage::Flight)||checkpoint==int(Stage::Kennels)||checkpoint==int(Stage::Recovery)||checkpoint==int(Stage::Report))cp=checkpoint;
+        if(f>>ver>>checkpoint>>ps>>st>>gr>>le>>night>>vol && (ver==1||ver==2)){
+            if(checkpoint==-1||checkpoint==int(Stage::Flight)||checkpoint==int(Stage::Apron)||checkpoint==int(Stage::Kennels)||checkpoint==int(Stage::Recovery)||checkpoint==int(Stage::Report))cp=checkpoint;
             prefs={bool(ps),bool(st),bool(gr),bool(le),bool(night),clamp(vol)};
+            if(ver==2&&f>>call>>beat>>prefs.look>>prefs.padLook>>prefs.deadzone){
+                call=std::clamp(call,0,2);beat=std::clamp(beat,0,5);prefs.look=clamp(prefs.look,.4f,2);prefs.padLook=clamp(prefs.padLook,.4f,2);prefs.deadzone=clamp(prefs.deadzone,.04f,.30f);
+            }
         }
     }
     void write(){
         if(path.empty())return;std::error_code ec;fs::create_directories(path.parent_path(),ec);fs::path tmp=path;tmp+=std::to_string(GetCurrentProcessId())+".tmp";
-        {std::ofstream f(tmp);f<<1<<" "<<cp<<" "<<prefs.psx<<" "<<prefs.steady<<" "<<prefs.grain<<" "<<prefs.lens<<" "<<prefs.nightMix<<" "<<prefs.volume<<"\n";f.close();if(!f)return;}
+        {std::ofstream f(tmp);f<<2<<" "<<cp<<" "<<prefs.psx<<" "<<prefs.steady<<" "<<prefs.grain<<" "<<prefs.lens<<" "<<prefs.nightMix<<" "<<prefs.volume<<" "<<call<<" "<<beat<<" "<<prefs.look<<" "<<prefs.padLook<<" "<<prefs.deadzone<<"\n";f.close();if(!f)return;}
         MoveFileExW(tmp.c_str(),path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH);
     }
 };
@@ -108,7 +111,14 @@ void screenshotProof(HWND window,Renderer& r,Game& g){
     m.build(g,p,true,16.f/9,1,false);r.draw(window,g,p,m,.04f);r.writeFrame("proof/standing-body.ppm");
     Input down;down.crouch=true;for(int j=0;j<65;j++)g.tick(down,p,1.f/90);
     m.build(g,p,true,16.f/9,1,false);r.draw(window,g,p,m,.04f);r.writeFrame("proof/crouching-body.ppm");
-    if(g.script.size()!=15)throw std::runtime_error("Missing dialogue rows");
+    auto capture=[&](const char* label){for(int i=0;i<8;i++){m.build(g,p,true,16.f/9,1,false);r.draw(window,g,p,m,.08f);}r.writeFrame(std::string("proof/")+label+".ppm");};
+    for(auto rec:{Recording::Animal,Recording::House,Recording::Grey}){
+        g.start(rec);for(int i=0;i<306;i++)g.tick({},p,1.f/90);capture(rec==Recording::Animal?"michigan-patrol":rec==Recording::House?"louisiana-patrol":"vermont-patrol");
+        g.start(rec,rec==Recording::Animal?Stage::Report:Stage::Apron,rec==Recording::House?2:rec==Recording::Grey?2:0);
+        if(rec==Recording::Animal)g.pos={.5f,0,61};for(int j=0;j<71;j++)g.tick({},p,1.f/90);
+        capture(rec==Recording::Animal?"lake-street":rec==Recording::House?"alder-kitchen":"north-spur");}
+    g.start(Recording::Range,Stage::Apron);g.choose(3);for(int j=0;j<60;j++)g.tick({},p,1.f/90);capture("training-annex");g.start(Recording::Animal);
+
 }
 int run(HINSTANCE instance,const std::string& args){
     wchar_t file[32768];DWORD n=GetModuleFileNameW(nullptr,file,32768);if(!n||n==32768)throw std::runtime_error("Executable path unavailable");fs::current_path(fs::path(file).parent_path());
@@ -120,7 +130,7 @@ int run(HINSTANCE instance,const std::string& args){
     RECT rect{0,0,winW,winH};AdjustWindowRect(&rect,WS_OVERLAPPEDWINDOW,FALSE);
     HWND window=CreateWindowW(wc.lpszClassName,L"FEVER",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,nullptr,instance,nullptr);
     if(!window)throw std::runtime_error("Cannot open the FEVER window");
-    Game g(readScript("docs/DIALOGUE.md"));if(g.script.size()!=15)throw std::runtime_error("Missing FEVER recording script");
+    Game g(readScript("docs/DIALOGUE.md"));if(g.script.size()!=38)throw std::runtime_error("Missing FEVER recording script");
     if(!loadTuning("assets/shift.cfg",g.tuning))throw std::runtime_error("Invalid assets/shift.cfg");
     Mixer mixer;mixer.loadTakes("assets/voice",g.script);Renderer renderer;renderer.init(window,g,proof);
     if(bench){renderer.benchmark(window,g,"FEVER-benchmark.csv");DestroyWindow(window);return 0;}
@@ -129,10 +139,18 @@ int run(HINSTANCE instance,const std::string& args){
     Output audio(mixer);Saved save;Menu menu;Pad pad;bool usingPad=false;float elapsed=0,accum=0;Input pending{};
     LARGE_INTEGER prev,freq;QueryPerformanceFrequency(&freq);QueryPerformanceCounter(&prev);
     auto show=[&](Page page){menu.page=page;menu.selected=0;keys.mouse=keys.right=false;};
+    auto openRecording=[&](Recording i,Stage cp,int beat,bool remember){
+        g.start(i,cp,beat);if(remember&&i!=Recording::Range){save.call=int(i);save.cp=int(cp);save.beat=beat;save.write();}
+        pending={};accum=0;audio.update(g,save.prefs,true,false,true);show(Page::Playing);
+    };
     auto apply=[&](Command c,int direction=1){
         switch(c){
-        case Command::Start:g.restart();save.cp=int(Stage::Flight);save.write();audio.update(g,save.prefs,true,false,true);show(Page::Playing);break;
-        case Command::Retry:case Command::Continue:g.restart(save.cp>=0?Stage(save.cp):Stage::Flight);audio.update(g,save.prefs,true,false,true);show(Page::Playing);break;
+        case Command::Start:openRecording(Recording::Animal,Stage::Flight,0,true);break;
+        case Command::Archive:menu.back=Page::Title;show(Page::Archive);break;
+        case Command::Animal:case Command::House:case Command::Grey:openRecording(Recording(int(c)-int(Command::Animal)),Stage::Flight,0,true);break;
+        case Command::Next:openRecording(Recording(std::min(2,int(g.recording)+1)),Stage::Flight,0,true);break;
+        case Command::Practice:openRecording(Recording::Range,Stage::Flight,0,false);break;
+        case Command::Retry:case Command::Continue:openRecording(Recording(save.call),save.cp>=0?Stage(save.cp):Stage::Flight,save.beat,false);break;
         case Command::Resume:show(Page::Playing);break;
         case Command::Title:show(Page::Title);audio.update(g,save.prefs,false,false,true);break;
         case Command::Options:case Command::Controls:menu.back=menu.page;show(c==Command::Options?Page::Options:Page::Controls);break;
@@ -143,12 +161,14 @@ int run(HINSTANCE instance,const std::string& args){
         case Command::Lens:save.prefs.lens=!save.prefs.lens;break;
         case Command::Grain:save.prefs.grain=!save.prefs.grain;break;
         case Command::Range:save.prefs.nightMix=!save.prefs.nightMix;break;
+        case Command::Look:case Command::PadLook:{float& v=c==Command::Look?save.prefs.look:save.prefs.padLook;int step=int(std::lround(v*10))-4;v=(4+(step+direction+17)%17)/10.f;break;}
+        case Command::Deadzone:{int step=int(std::lround(save.prefs.deadzone*100))-4;save.prefs.deadzone=(4+(step+direction+27)%27)/100.f;break;}
         case Command::Volume:{int v=int(std::round(save.prefs.volume*10));save.prefs.volume=((v+direction+11)%11)/10.f;break;}
         default:break;}
         if(c>=Command::Profile)save.write();
         if(c!=Command::None)g.emit(Sound::Key,g.camera,Bus::Body,.7f);
     };
-    float stickRepeat=0;int lastNav=0;
+    bool runningPad=false;float stickRepeat=0;int lastNav=0;
     bool telemetry=false;std::array<float,120> samples{};size_t sampled=0;float sampleClock=0;
 
     while(!quit){
@@ -173,27 +193,30 @@ int run(HINSTANCE instance,const std::string& args){
         if(menu.page==Page::Playing&&keys.focused){
             if(keys.escape||(pad.pressed&XINPUT_GAMEPAD_START)){show(Page::Pause);pending={};accum=0;}
             else{
-                auto l=Pad::stick(controller.sThumbLX,controller.sThumbLY,.17f),r=Pad::stick(controller.sThumbRX,controller.sThumbRY,.13f);
+                auto l=Pad::stick(controller.sThumbLX,controller.sThumbLY,.17f),r=Pad::stick(controller.sThumbRX,controller.sThumbRY,save.prefs.deadzone);
                 Input input;input.walk=clamp(float(keys.down['W']-keys.down['S'])+l.z,-1,1);input.strafe=clamp(float(keys.down['D']-keys.down['A'])+l.x,-1,1);
                 input.aim=keys.right||controller.bLeftTrigger>42;
-                float sensitivity=input.aim?.61f:1.f,curve=.38f+.62f*len(r);
-                pending.dx+=(keys.rawX*.0021f+r.x*curve*dt*3.8f)*sensitivity;pending.dy+=(-keys.rawY*.0021f+r.z*curve*dt*2.75f)*sensitivity;
-                input.sprint=keys.down[VK_SHIFT]||(controller.wButtons&XINPUT_GAMEPAD_LEFT_THUMB);input.crouch=keys.down[VK_CONTROL]||(controller.wButtons&XINPUT_GAMEPAD_B);
+                float sensitivity=1-g.aim*(g.weapon()==Weapon::Sniper?.69f:.39f),curve=.27f+.73f*dot(r,r);
+                pending.dx+=(keys.rawX*.0021f*save.prefs.look+r.x*curve*dt*3.8f*save.prefs.padLook)*sensitivity;pending.dy+=(-keys.rawY*.0021f*save.prefs.look+r.z*curve*dt*2.75f*save.prefs.padLook)*sensitivity;
+                if(pad.pressed&XINPUT_GAMEPAD_LEFT_THUMB)runningPad=true;if(l.z<.25f||input.aim||controller.bRightTrigger>45||!pad.live)runningPad=false;
+                input.sprint=keys.down[VK_SHIFT]||runningPad;input.crouch=keys.down[VK_CONTROL]||(controller.wButtons&XINPUT_GAMEPAD_B);
                 input.fire=keys.mouse||controller.bRightTrigger>45;pending.fire|=keys.click;pending.light|=keys.tap['F']||(pad.pressed&XINPUT_GAMEPAD_DPAD_UP);
-                pending.jump|=keys.tap[VK_SPACE]||(pad.pressed&XINPUT_GAMEPAD_A);pending.interact|=keys.tap['E']||(pad.pressed&XINPUT_GAMEPAD_X);
-                pending.reload|=keys.tap['R']||((pad.pressed&XINPUT_GAMEPAD_X)&&!g.canReport());
+                pending.uv|=keys.tap['V']||(pad.pressed&XINPUT_GAMEPAD_DPAD_LEFT);pending.jump|=keys.tap[VK_SPACE]||(pad.pressed&XINPUT_GAMEPAD_A);pending.interact|=keys.tap['E']||(pad.pressed&XINPUT_GAMEPAD_X);
+                pending.reload|=keys.tap['R']||((pad.pressed&XINPUT_GAMEPAD_X)&&g.prompt(true).empty());
                 pending.cycle+=keys.wheel>0?-1:keys.wheel<0?1:0;if(pad.pressed&XINPUT_GAMEPAD_Y)pending.cycle++;
-                for(int j=0;j<3;j++)if(keys.tap['1'+j])pending.weapon=j;
+                for(int j=0;j<(g.recording==Recording::Range?7:3);j++)if(keys.tap['1'+j])pending.weapon=j;
                 accum+=dt;constexpr float step=1.f/90;int steps=std::min(9,int(accum/step));
                 if(steps){input.dx=pending.dx/steps;input.dy=pending.dy/steps;
                     for(int j=0;j<steps;j++){
-                        Input frame=input;if(!j){frame.light=pending.light;frame.jump=pending.jump;frame.interact=pending.interact;frame.reload=pending.reload;frame.cycle=pending.cycle;frame.weapon=pending.weapon;frame.fire|=pending.fire;}
-                        Stage old=g.stage;g.tick(frame,save.prefs,step);accum-=step;
-                        if(old!=g.stage&&(g.stage==Stage::Kennels||g.stage==Stage::Recovery||g.stage==Stage::Report)){save.cp=int(g.stage);save.write();}
+                        Input frame=input;if(!j){frame.uv=pending.uv;frame.light=pending.light;frame.jump=pending.jump;frame.interact=pending.interact;frame.reload=pending.reload;frame.cycle=pending.cycle;frame.weapon=pending.weapon;frame.fire|=pending.fire;}
+                        Stage old=g.stage;int oldBeat=g.beat;g.tick(frame,save.prefs,step);accum-=step;
+                        bool checkpoint=old!=g.stage&&(g.stage==Stage::Apron||g.stage==Stage::Kennels||g.stage==Stage::Recovery||g.stage==Stage::Report);
+                        bool progress=oldBeat!=g.beat&&((g.recording==Recording::House&&g.beat<=5)||(g.recording==Recording::Grey&&g.beat<=2));
+                        if(g.recording!=Recording::Range&&(checkpoint||progress)){save.cp=int(g.stage);save.call=int(g.recording);save.beat=g.beat;save.write();}
                     }pending={};
                 }
                 if(g.stage==Stage::Lost&&g.age>.85f)show(Page::Lost);
-                if(g.stage==Stage::Filed&&g.age>9&&g.subtitle.left<=0&&g.queue.empty()){save.cp=-1;save.write();show(Page::Filed);}
+                if(g.stage==Stage::Filed&&g.age>9&&g.subtitle.left<=0&&g.queue.empty()){save.cp=g.recording==Recording::Grey?-1:int(Stage::Flight);save.call=std::min(2,int(g.recording)+1);save.beat=0;save.write();show(Page::Filed);}
             }
         }else if(keys.focused){
             V sticks=Pad::stick(controller.sThumbLX,controller.sThumbLY,.34f);
@@ -203,7 +226,7 @@ int run(HINSTANCE instance,const std::string& args){
             int under=menu.hit(keys.mouseX/float(bounds.right)*menu.width,keys.mouseY/float(bounds.bottom)*720);
             if(under>=0&&(keys.moved||keys.click))menu.selected=under;
             bool left=keys.tap[VK_LEFT]||(pad.pressed&XINPUT_GAMEPAD_DPAD_LEFT),rightKey=keys.tap[VK_RIGHT]||(pad.pressed&XINPUT_GAMEPAD_DPAD_RIGHT);
-            if(keys.escape||(pad.pressed&XINPUT_GAMEPAD_B)){if(menu.page==Page::Options||menu.page==Page::Controls)apply(Command::Back);else if(menu.page==Page::Pause)apply(Command::Resume);}
+            if(keys.escape||(pad.pressed&XINPUT_GAMEPAD_B)){if(menu.page==Page::Options||menu.page==Page::Controls||menu.page==Page::Archive)apply(Command::Back);else if(menu.page==Page::Pause)apply(Command::Resume);}
             else if(keys.tap[VK_RETURN]||(keys.click&&under>=0)||(pad.pressed&XINPUT_GAMEPAD_A))apply(menu.confirm());
             else if((left||rightKey)&&menu.page==Page::Options&&menu.confirm()>=Command::Profile)apply(menu.confirm(),left?-1:1);
         }

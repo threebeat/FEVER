@@ -51,14 +51,20 @@ struct Spring {
         x=target+(y+c*dt)*e;v=(v-w*c*dt)*e;
     }
 };
+enum class Recording {Animal,House,Grey,Range};
+enum class Weapon {Auto,Pistol,Knife,Hunting,Semi,Sniper,Launcher};
+struct WeaponSpec {const char* title;const char* mesh;int capacity;float delay,reload,kick,fov,damage;bool automatic,bolt;};
+const WeaponSpec& spec(Weapon w);
+struct RecordInfo {const char* title;const char* place;const char* unit;const char* officer;const char* objective;int clock;};
+const RecordInfo& info(Recording r);
 enum class Stage {Flight,Apron,Reception,Kennels,Lash,Recovery,Examination,Exposure,Report,Filed,Lost};
 enum class Zone {Cabin,Yard,Intake,Kennels,Isolation};
 enum class Bus {World,Radio,Body};
-enum class Sound {Boot,Key,Step,Cloth,Door,Intercom,Hum,Gate,Lash,Round,Strike,Drop,Pulse,Host,Footfall,Rotors,Beep,Reload,Seat,Latch,Wind,Voice};
+enum class Sound {Boot,Key,Step,Cloth,Door,Intercom,Hum,Gate,Lash,Round,Strike,Drop,Pulse,Host,Footfall,Rotors,Beep,Reload,Seat,Latch,Wind,Turn,Knock,Snow,Glass,Brass,Blast,Howl,Voice};
 enum class Speaker {Dispatch,Cole,Ives,Bell,Player};
 struct Event {Sound sound; V pos; Bus bus=Bus::World; float gain=1; Speaker speaker=Speaker::Player; std::string cue;};
-struct Input {float walk=0,strafe=0,dx=0,dy=0;bool aim=false,fire=false,sprint=false,crouch=false,interact=false,reload=false,light=false,jump=false;int weapon=-1,cycle=0;};
-struct Prefs {bool psx=false,steady=false,grain=true,lens=true,nightMix=false;float volume=.78f;};
+struct Input {float walk=0,strafe=0,dx=0,dy=0;bool aim=false,fire=false,sprint=false,crouch=false,interact=false,reload=false,light=false,jump=false,uv=false;int weapon=-1,cycle=0;};
+struct Prefs {bool psx=false,steady=false,grain=true,lens=true,nightMix=false;float volume=.78f,look=1,padLook=1,deadzone=.13f;};
 struct Tuning {float wait=7.4f,resume=4.1f,catchup=5,run=4.85f,inspect=3.2f,hostSpeed=1.55f,reach=6.8f,spring=7,fov=105,warp=.061f,ring=.85f;};
 enum class Task {Advance,Inspect,Wait,CatchUp,Defend,Treat,Open,Observe,Stagger};
 struct Brain {Task task=Task::Advance;V point{},routeGoal{},remembered{};float memory=0;float think=0,watch=0,repath=0,fireTimer=0;int interest=-1,target=-1;uint32_t visited=0;std::vector<V> path;};

@@ -23,7 +23,7 @@ class Renderer {
     ComPtr<ID3D11SamplerState> repeat,linear,point;
     ComPtr<ID3D11RasterizerState> rasterizer,shadowRasterizer;
     ComPtr<ID3D11BlendState> alpha;ComPtr<ID3D11DepthStencilState> depthOn,depthOff;
-    std::map<std::string,Batch> meshes;std::array<bool,16> lowLast{};
+    std::map<std::string,Batch> meshes;std::array<bool,192> lowLast{};
     Target scene,meter[2];int width=0,height=0,sw=0,sh=0,readMeter=0;float meterClock=0;bool currentPSX=false,haveSize=false;
     void rebuild(int w,int h,bool psx);
     void viewport(int w,int h);

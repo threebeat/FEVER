@@ -88,8 +88,7 @@ float4 worldPS(World i):SV_TARGET {
     float nl=saturate(dot(n,L)),cosine=dot(-L,lampForward.xyz);
     float beam=smoothstep(.833,.958,cosine)*(.37+.63*smoothstep(.948,.992,cosine));
     float flashLight=control.y*beam*6.6/(1+.105*ds);
-    if(flashLight>.001)lit+=float3(1,.945,.82)*visibility(i.world,nl)*flashLight*(albedo*(.15+.85*nl)+reflectTint*wet*.45*pow(saturate(dot(n,normalize(L+view))),rough));
-    lit+=albedo*float3(1,.55,.22)*control.z*4.1/(1+.28*ds);
+    if(flashLight>.001)lit+=lerp(float3(1,.945,.82),float3(.46,.31,1.0),raster.w)*visibility(i.world,nl)*flashLight*(albedo*(.15+.85*nl)+reflectTint*wet*.45*pow(saturate(dot(n,normalize(L+view))),rough));
     float distanceToEye=length(i.world-eye.xyz),haze=1-exp(-distanceToEye*.010);
     return float4(lerp(lit,float3(.042,.055,.060),haze*.63),1);
 }
