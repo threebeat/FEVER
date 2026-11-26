@@ -926,7 +926,7 @@ export function buildGun(mesh,weapon,options={}) {
   const shift=weaponBody(m,id,pose);
   const tube=(a,b,r1,r2,col,mt,n)=>limb(m,[[a,r1,r1,col],[b,r2,r2,col]],n,mt,true);
   if(options.variantModel==='sniper'){
-    for(const z of [-.42,-.273]){box(m,[0,.114,z],.050,.072,.035,paint.blued,5);tube([0,.15,z-.015],[0,.15,z+.012],.039,.039,paint.blued,5,12);}
+    for(const z of [-.42,-.273]){box(m,0,.114,z,.050,.072,.035,paint.blued,5);tube([0,.15,z-.015],[0,.15,z+.012],.039,.039,paint.blued,5,12);}
     tube([0,.151,-.50],[0,.151,-.405],.042,.028,paint.blued,5,14);
     tube([0,.151,-.406],[0,.151,-.230],.027,.027,paint.blued,5,14);
     tube([0,.151,-.232],[0,.151,-.175],.027,.042,paint.blued,5,14);
