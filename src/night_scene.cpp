@@ -56,6 +56,13 @@ void parkedCar(Builder& b){
     b.face({.74f,.83f,-1.25f},{-.74f,.83f,-1.25f},{-.64f,1.32f,-.88f},{.64f,1.32f,-.88f},iron,DarkGlass);
     panel(b,0,.54f,-2.009f,.35f,.14f,trim,Enamel);
 }
+void overheadLine(Builder& b,float x,float first,int spans){
+    const float spacing=12.5f;for(int i=0;i<=spans;i++){
+        float z=first+spacing*i;b.pipe({x,0,z},{x+.04f,6.35f,z},.115f,.067f,timber,Wood,7);
+        b.box({x,5.78f,z},{1.62f,.12f,.15f},timber,Wood);
+        for(float off:{-.64f,.50f}){b.pipe({x+off,5.81f,z},{x+off,6.06f,z},.052f,.032f,trim,Enamel,6);
+            if(i==spans)continue;V prev={x+off,6.03f,z};
+            for(int k=1;k<=5;k++){float t=k/5.f;V q={x+off,6.03f-.37f*std::sin(t*pi),z+spacing*t};b.pipe(prev,q,.018f,.018f,dark,Polymer,4);prev=q;}}}}
 void lampPost(Builder& b,float x,float z){float s=x>0?-1:1;b.pipe({x,0,z},{x,4.90f,z},.10f,.045f,iron);b.pipe({x,4.88f,z},{x+s*1.19f,5.13f,z},.055f,.029f,iron);
     b.box({x+s*1.28f,5.15f,z},{.65f,.16f,.31f},iron);b.box({x+s*1.28f,5.05f,z},{.49f,.032f,.26f},amber,Warm);}
 void shop(Builder& b,int s,float z,int k){
@@ -71,6 +78,7 @@ void street(Builder& b,bool rear){
     for(float x:{-11.f,11.f})b.box({x,.019f,mid},{4,.10f,45},rock,Stone);
     for(int i=0;i<9;i++)b.box({0,.012f,z+2+i*5},{.085f,.016f,2.10f},brass,Enamel);
     for(int s:{-1,1})for(int k=0;k<5;k++)shop(b,s,z+4.1f+k*8.4f,(k+3+(s>0?2:0))%6);
+    overheadLine(b,-10.85f,z+2.0f,3);
     for(int i=0;i<4;i++){float x=i%2?-9.7f:9.7f,zz=z+5+i*11;lampPost(b,x,zz);b.pipe({x,.03f,zz+2},{x,1.04f,zz+2},.046f,.045f,iron);b.box({x,1.15f,zz+2},{.25f,.31f,.16f},rock);}
     for(int j=0;j<8;j++)b.box({-4.4f+j*1.27f,.019f,z+9},{.66f,.012f,2.45f},trim,Enamel);
     if(rear){for(int i=0;i<7;i++){float x=(i-3)*4.2f,h=4.f+i%3*2;b.box({x,h/2,84},{4.0f,h,5},i%2?brick:rock,Plaster);
@@ -121,6 +129,9 @@ void porch(Builder& b){
     for(int s:{-1,1})for(int j=0;j<5;j++){float x=s*(9+j%2*1.8f),z=-39+j*8.6f;
         b.box({x,1.65f,z},{6,3.3f,5},j%2?timber:rock,Wood);roof(b,{x,3.29f,z},6.7f,5.8f,1.27f);
         for(int k:{-1,1})panel(b,x+k*1.55f,1.74f,z-2.54f,.8f,1.15f,k==1&&j%2?amber:iron,k==1&&j%2?Warm:DarkGlass);}
+    overheadLine(b,5.6f,-43,3);
+    for(int i=0;i<8;i++){int side=i%2?1:-1;float x=side*(4.7f+.33f*(i%3)),z=-37+i*4.25f;
+        b.pipe({x,0,z},{x,.86f,z},.05f,.054f,timber,Wood,7);b.box({x,.92f,z},{.24f,.25f,.47f},i%3?iron:brick,Enamel);b.box({x+side*.13f,1.0f,z+.03f},{.025f,.07f,.12f},brick,Enamel);}
     roof(b,{0,3.4f,5},10.65f,10.7f,1.98f);b.box({0,2.64f,-1.5f},{7.2f,.13f,3.20f},timber,Wood);
     for(float x:{-3.3f,3.3f})b.box({x,1.36f,-2.84f},{.18f,2.72f,.18f},trim,Wood);b.box({0,.016f,-1.53f},{7.3f,.05f,3.1f},timber,Wood);
     b.sign({1.67f,1.43f,-.13f},{1.4f,0,0},.36f,14);}
@@ -215,6 +226,13 @@ void locationInstances(const Game& g,std::vector<Instance>& out,bool shadows){
         out.push_back({id,p,100+int(i)});}
 }
 void locationEffects(const Game& g,Builder& b){
+    if(g.stage==Stage::Flight&&g.recording!=Recording::Range&&g.recording!=Recording::Grey){
+        V car=g.vehicle();int count=g.recording==Recording::House?69:36;float sweep=.50f+.42f*std::sin(g.time*2.4f);
+        for(int i=0;i<count;i++){float x=std::fmod(i*.4193f+.13f,1.0f),y=std::fmod(i*.6234f+g.time*(.012f+.003f*(i%3)),1.0f);
+            if(std::abs(x-sweep)<.21f&&y>.31f&&x<.76f)continue;
+            V a=car+V{(x-.5f)*1.38f,1.59f-.57f*y,.68f+.31f*y};
+            V r{.0018f+.0006f*(i%4),0,0},down{.0013f,-.007f-.003f*(i%4),.005f};
+            b.face(a-r,a+down,a+r,a-down*.22f,{.36f,.40f,.38f},DarkGlass);}}
     if(g.recording==Recording::House&&!g.cellarKey&&g.beat<5){b.pipe(keyAt,keyAt+V{.15f,0,.04f},.019f,.015f,brass,Metal,7);hoop(b,keyAt,{1,0,0},{0,0,1},.045f,.011f,brass,Metal,8);}
     if(g.tether>0&&((g.recording==Recording::Grey&&g.uv)||g.recording==Recording::House)){
         bool alien=g.recording==Recording::Grey;V a=alien?g.contacts[0].p+V{0,1.7f,0}:g.contacts[0].origin;
@@ -234,7 +252,8 @@ std::vector<Lamp> callLights(const Game& g){
         for(float z:{-36.f,-20.f,-5.f})add({-4.3f,3.4f,z},amber,8);}
     if(g.recording==Recording::Grey){add({1,2.5f,13},amber,7.5f);add({-3,2,9},light,5);add({3.5f,6,58},amber,6);if(g.beat==4)add(flareAt,{1,.16f,.05f},15);}
     if(g.recording==Recording::Range)for(int i=0;i<8;i++)add({i%2?3.1f:-3.1f,3.2f,-7.f+i*5.7f},i%2?light:amber,10);
-    if(g.stage==Stage::Flight){V v=g.vehicle();add(v+V{.26f,1.1f,.31f},light,1.1f);add(v+V{0,.8f,6.8f},light,9);}
+    if(g.stage==Stage::Flight){V v=g.vehicle();add(v+V{.26f,1.1f,.31f},light*.55f,1.1f);add(v+V{0,.8f,6.8f},light,9);
+        if(g.recording==Recording::Animal&&g.age<8.7f)add({2.15f,.70f,-16.f-3.72f*g.age},amber*.73f,6.5f);}
     if(g.flash>.001f)add(g.muzzle(),{1,.72f,.32f},3.8f+g.flash*11.f);
     if(g.blast>.03f)add(g.blastPos,{1,.48f,.14f},2.5f+10*g.blast);
     std::stable_sort(l.begin(),l.end(),[&](const Lamp& a,const Lamp& b){return len(a.p-g.camera)-.3f*a.range<len(b.p-g.camera)-.3f*b.range;});l.resize(8,{{},{},1.f});return l;

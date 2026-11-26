@@ -4,7 +4,7 @@ One night, three police bodycams. Respond as Reed to a late disturbance at a Mic
 
 **[Download FEVER for Windows x64](https://github.com/threebeat/FEVER/releases/latest/download/FEVER-Windows-x64.zip)**. Extract the ZIP and open **FEVER.exe**. The native game runs on Windows 10/11 with a Direct3D 11 feature-level 11_0 graphics device. Begin Shift starts in Michigan. Select Recording opens any call directly. Firing Range offers seven weapons and resetting steel plates. Practice leaves the call checkpoint intact. Both visual modes and the camera, mouse and stick adjustments are in Options. Settings and checkpoints live in `%LOCALAPPDATA%\FEVER\shift.dat`.
 
-![Relay Six in Photorealistic and PSX, and Reed's own body as seen from the recorder](docs/media/relay-six.jpg)
+![In-car recordings and on-foot views in Michigan, Louisiana and Vermont, plus the training annex](https://github.com/threebeat/FEVER/releases/latest/download/FEVER-recordings.jpg)
 
 ## Controls
 
@@ -32,7 +32,7 @@ One night, three police bodycams. Respond as Reed to a late disturbance at a Mic
 
 ## Build from source
 
-Use Visual Studio 2022's Desktop development with C++ workload, a Windows SDK and CMake 3.20 or later. The executable, renderer, gameplay, animation and audio are C++17. Install Node.js 20 or newer, Python 3 and Pillow for the source art cook. CMake generates the additional character poses, range models and location signs. The Windows portable includes the cooked assets.
+Use Visual Studio 2022's Desktop development with C++ workload, a Windows SDK and CMake 3.20 or later. The executable, renderer, gameplay, animation and audio are C++17. The release includes cooked art. To regenerate the additional character poses, range models and signs, install Node.js 20 or newer, Python 3 and Pillow, then configure CMake with `-DFEVER_RECOOK_ART=ON`. A source checkout missing the new models runs the cook automatically.
 
 ```powershell
 cmake -S . -B build -A x64

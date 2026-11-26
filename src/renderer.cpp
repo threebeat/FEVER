@@ -174,7 +174,7 @@ void Renderer::draw(HWND window,const Game& g,const Prefs& prefs,const Menu& men
     ID3D11SamplerState* ss[]={repeat.Get(),linear.Get(),point.Get()};ctx->PSSetSamplers(0,3,ss);
     bool game=menu.page==Page::Playing||menu.page==Page::Pause||menu.page==Page::Lost||menu.page==Page::Filed||((menu.page==Page::Options||menu.page==Page::Controls)&&menu.back==Page::Pause);
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);ctx->RSSetState(rasterizer.Get());
-    float clear[]={.022f,.031f,.039f,1};ctx->OMSetBlendState(nullptr,nullptr,~0u);
+    float clear[]={.010f,.016f,.023f,1};if(g.recording==Recording::Grey){clear[0]=.019f;clear[1]=.028f;clear[2]=.039f;}ctx->OMSetBlendState(nullptr,nullptr,~0u);
     if(game){
         V az=forward(g.camYaw,g.camPitch),ax=right(g.camYaw),ay=norm(cross(az,ax)),rx=ax*std::cos(g.camRoll)+ay*std::sin(g.camRoll),ry=norm(cross(az,rx));
         V light=g.camera+right(g.yaw)*.077f+V{0,.055f,0},lz=g.aimRay(),lx=right(g.yaw),ly=norm(cross(lz,lx));
