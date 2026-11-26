@@ -77,11 +77,18 @@ void cameraAndHandling(){
 void audio(){
     auto rightSource=acousticPath({0,1,15},0,Zone::Kennels,{2,1,16},Bus::World,1);REQUIRE(rightSource.right>rightSource.left);
     auto outside=acousticPath({0,1,-1},0,Zone::Yard,{0,1,2},Bus::World,1),closed=acousticPath({0,1,-1},0,Zone::Yard,{0,1,2},Bus::World,0);REQUIRE(closed.cutoff<outside.cutoff&&closed.left<outside.left);
+    auto steel=acousticPath({0,1,19},0,Zone::Kennels,{3,1,19},Bus::World,1);
+    auto fabric=acousticPath({-3.45f,1,43},0,Zone::Isolation,{-3.45f,1,46},Bus::World,1);
+    auto glass=acousticPath({-3.8f,1.65f,46},0,Zone::Isolation,{-5.3f,1.65f,46},Bus::World,1);
+    REQUIRE(fabric.cutoff<glass.cutoff&&glass.cutoff<steel.cutoff);
+    REQUIRE(steel.send>outside.send);
     Mixer m;auto list=readScript("docs/DIALOGUE.md");m.loadTakes("tests/missing-takes",list);REQUIRE(m.recordedTakes()==0);
     std::array<int16_t,1024> out{};MixState state;m.play({Sound::Voice,{},Bus::World,1,Speaker::Cole,"R6_004"});m.render(out.data(),512,state);
     REQUIRE(std::all_of(out.begin(),out.end(),[](auto x){return x==0;}));m.play({Sound::Round,{},Bus::Body,1});
     m.render(out.data(),512,state);REQUIRE(std::any_of(out.begin(),out.end(),[](auto x){return std::abs(x)>1000;}));
-    REQUIRE(m.overloadLevel()>.7f);m.clear();REQUIRE(m.overloadLevel()==0);
+    REQUIRE(m.overloadLevel()>.7f);
+    for(int j=0;j<6;j++){m.play({Sound::Round,{},Bus::Body,1});m.render(out.data(),512,state);}
+    REQUIRE(m.overloadLevel()<=1);m.clear();REQUIRE(m.overloadLevel()==0);
     auto received=[&](float opening){
         state.listener={0,1,-1};state.room=Zone::Yard;state.door=opening;
         m.clear();m.play({Sound::Round,{0,1,2},Bus::World,1});m.render(out.data(),512,state);

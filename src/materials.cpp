@@ -5,7 +5,7 @@
 #include <cmath>
 namespace fever {
 MaterialTable readMaterials(const std::string& path){
-    const std::array<std::string,15> names={"plaster","wood","metal","fabric","hide","aggregate","enamel","stone","warm","cold","red","blood","sign","dark-glass","paper"};
+    const std::array<std::string,17> names={"plaster","wood","metal","fabric","hide","aggregate","enamel","stone","warm","cold","red","blood","sign","dark-glass","paper","polymer","skin"};
     MaterialTable table{};size_t index=0;std::ifstream input(path);std::string line;
     while(std::getline(input,line)){
         std::istringstream row(line.substr(0,line.find('#')));std::string name,tail;

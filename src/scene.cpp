@@ -185,7 +185,8 @@ MeshData readMesh(const std::string& path){
         unsigned char b[44]{};if(!f.read((char*)b,stride))throw std::runtime_error("Incomplete mesh "+path);
         auto i16=[&](int k){return int16_t(int(b[k])+(int(b[k+1])<<8));};
         V p={i16(0)/2400.f,i16(2)/2400.f,i16(4)/2400.f},n={int8_t(b[6])/127.f,int8_t(b[7])/127.f,int8_t(b[8])/127.f},c={b[9]/255.f,b[10]/255.f,b[11]/255.f};
-        int legacy=b[12],mat=legacy==12?Cold:legacy==13?Red:legacy==5?Metal:legacy==8?Fabric:legacy==6?DarkGlass:legacy==7?Enamel:Fabric;
+        static constexpr int finish[]={Fabric,Plaster,Wood,Aggregate,Stone,Metal,DarkGlass,Polymer,Fabric,Hide,Enamel,Skin,Cold,Red};
+        int legacy=b[12],mat=legacy<int(std::size(finish))?finish[legacy]:Fabric;
         auto track=[&](int j){return V{i16(j)/3200.f,i16(j+2)/3200.f,i16(j+4)/3200.f};};
         data.vertices.push_back({p,n,c,float(mat),0,0,track(14),track(20),track(26),track(32),track(38)});
     }

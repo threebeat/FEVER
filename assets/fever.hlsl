@@ -6,7 +6,7 @@ cbuffer Frame : register(b0) {
 };
 cbuffer Object : register(b1) { float4 origin, axisX, axisY, axisZ, deformation, extraTracks; };
 struct Material {float4 base;float4 lighting;};
-cbuffer SurfaceLibrary : register(b2) { Material library[15]; };
+cbuffer SurfaceLibrary : register(b2) { Material library[17]; };
 Texture2DArray<float4> surfaces : register(t0);
 Texture2D<float4> plaques : register(t1);
 Texture2D<float> depthMap : register(t2);
@@ -51,7 +51,7 @@ float visibility(float3 p,float ndl){
     return .10+.225*v;
 }
 float4 worldPS(World i):SV_TARGET {
-    int mat=clamp((int)round(i.tex.x),0,14);Material m=library[mat];float3 n=normalize(i.normal),view=normalize(eye.xyz-i.world);
+    int mat=clamp((int)round(i.tex.x),0,16);Material m=library[mat];float3 n=normalize(i.normal),view=normalize(eye.xyz-i.world);
     n=dot(n,view)<0?-n:n;
     float3 axis=abs(normalize(i.localNormal));float2 uv=axis.y>.55?i.local.xz:axis.x>axis.z?i.local.zy:i.local.xy;
     int slice=(int)m.base.x;float scale=m.base.y;
