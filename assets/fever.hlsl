@@ -4,7 +4,9 @@ cbuffer Frame : register(b0) {
     float4 lampOrigin, lampRight, lampUp, lampForward;
     float4 lightPos[8], lightColor[8];
 };
-cbuffer Object : register(b1) { float4 origin, axisX, axisY, axisZ, deformation; };
+cbuffer Object : register(b1) { float4 origin, axisX, axisY, axisZ, deformation, extraTracks; };
+struct Material {float4 base;float4 lighting;};
+cbuffer SurfaceLibrary : register(b2) { Material library[15]; };
 Texture2DArray<float4> surfaces : register(t0);
 Texture2D<float4> plaques : register(t1);
 Texture2D<float> depthMap : register(t2);
@@ -16,11 +18,11 @@ Texture2DArray<float4> surfaceResponse : register(t7);
 SamplerState tiled : register(s0);
 SamplerState linearClamp : register(s1);
 SamplerState nearestClamp : register(s2);
-struct Vertex {float3 position:POSITION;float3 normal:NORMAL;float3 color:COLOR;float3 surface:TEXCOORD0;float3 delta:TEXCOORD1;float3 action:TEXCOORD2;float3 reaction:TEXCOORD3;};
-struct World {float4 clip:SV_POSITION;float3 world:TEXCOORD0;float3 normal:TEXCOORD1;float3 color:COLOR;float3 tex:TEXCOORD2;float3 local:TEXCOORD3;};
+struct Vertex {float3 position:POSITION;float3 normal:NORMAL;float4 color:COLOR;float2 uv:TEXCOORD0;int4 delta:TEXCOORD1;int4 action:TEXCOORD2;int4 reaction:TEXCOORD3;int4 mechanism:TEXCOORD4;int4 idle:TEXCOORD5;};
+struct World {float4 clip:SV_POSITION;float3 world:TEXCOORD0;float3 normal:TEXCOORD1;float3 color:COLOR;float3 tex:TEXCOORD2;float3 local:TEXCOORD3;float3 localNormal:TEXCOORD4;};
 float3 vertexWorld(Vertex v){
     float react=saturate(deformation.w),act=min(deformation.z,1-react);
-    float3 p=v.position+(1-act-react)*deformation.x*v.delta+act*v.action+react*v.reaction;
+    float3 p=v.position+((1-act-react)*deformation.x*v.delta.xyz+act*v.action.xyz+react*v.reaction.xyz+extraTracks.x*v.mechanism.xyz+extraTracks.y*v.idle.xyz)/3200.0;
     float f=deformation.y;
     p.z+=f*(.23*smoothstep(.55,1.5,p.y)-.17*smoothstep(.12,.52,p.y));
     p.y-=f*min(max(p.y,0)*.47,.67);
@@ -36,7 +38,7 @@ World worldVS(Vertex v){
     o.clip=float4(dot(rel,side.xyz)*projection.x,dot(rel,up.xyz)*projection.y,z*projection.z+projection.w,z);
     if(control.x>.5&&z>.1){float2 grid=raster.xy*.5;o.clip.xy=round(o.clip.xy/z*grid)/grid*z;}
     o.normal=axisX.xyz*v.normal.x+axisY.xyz*v.normal.y+axisZ.xyz*v.normal.z;
-    o.color=v.color;o.tex=v.surface;o.local=v.position;return o;
+    o.color=v.color.rgb;o.tex=float3(round(v.color.a*255),v.uv);o.local=v.position;o.localNormal=v.normal;return o;
 }
 float visibility(float3 p,float ndl){
     float4 s=lampClip(p);if(s.w<.12||s.w>19.5)return 1;
@@ -49,28 +51,30 @@ float visibility(float3 p,float ndl){
     return .10+.225*v;
 }
 float4 worldPS(World i):SV_TARGET {
-    int mat=(int)round(i.tex.x);float3 n=normalize(i.normal),view=normalize(eye.xyz-i.world);
+    int mat=clamp((int)round(i.tex.x),0,14);Material m=library[mat];float3 n=normalize(i.normal),view=normalize(eye.xyz-i.world);
     n=dot(n,view)<0?-n:n;
-    float3 axis=abs(normalize(i.normal));float2 uv=axis.y>.55?i.local.xz:axis.x>axis.z?i.local.zy:i.local.xy;
-    int slice=clamp(mat,0,7);float scale=mat==3?3.2:mat==2?1.9:.78;
+    float3 axis=abs(normalize(i.localNormal));float2 uv=axis.y>.55?i.local.xz:axis.x>axis.z?i.local.zy:i.local.xy;
+    int slice=(int)m.base.x;float scale=m.base.y;
     float3 sampleColor=surfaces.Sample(tiled,float3(uv*scale,slice)).rgb;
     float grain=dot(sampleColor,float3(.28,.54,.18));
     float3 albedo=i.color*(.68+grain*.80);
     if(mat==12)albedo=plaques.Sample(linearClamp,i.tex.yz).rgb;
     if(mat==11)albedo=i.color*(.76+.19*grain);
-    if(mat==8||mat==9||mat==10)return float4(i.color*(mat==10?2.0:3.4),1);
+    if(m.lighting.z>0)return float4(i.color*m.lighting.z,1);
     float cavity=saturate(.68+.29*grain+.03*i.world.y);
-    float wet=(mat==11?.95:mat==13?.83:mat==2?.59:mat==6?.40:mat==5&&axis.y>.8?.34:.065);
-    float rough=lerp(10,66,wet);
-    if(control.x<.5 && mat<8){
+    float wet=m.lighting.y;float roughness=m.base.z;
+    if(control.x<.5 && m.lighting.x>0){
         float4 detail=surfaceResponse.Sample(tiled,float3(uv*scale,slice));
-        float3 localT=axis.x>.65?float3(0,0,1):float3(1,0,0);
-        float3 T=normalize(localT-n*dot(n,localT)),B=cross(n,T);
-        float2 slope=(detail.rg-.5)*.82;
+        bool horizontal=axis.y>.55,sideWall=!horizontal&&axis.x>axis.z;
+        float3 T=sideWall?axisZ.xyz:axisX.xyz,B=horizontal?axisZ.xyz:axisY.xyz;
+        T=normalize(T-n*dot(n,T));B=normalize(B-n*dot(n,B)-T*dot(T,B));
+        float2 slope=(detail.ga-.5)*(m.lighting.x*1.3);
         n=normalize(n-T*slope.x-B*slope.y);
-        cavity*=lerp(.66,1,detail.a);
-        rough=lerp(rough,lerp(84,9,detail.b),.64);
+        cavity*=lerp(.68,1,detail.b);
+        roughness=saturate(roughness+.36*(detail.r-.5));
     }
+    float rough=lerp(96,7,roughness);
+    float3 reflectTint=lerp(float3(1,1,1),saturate(i.color*1.5),m.base.w);
     float3 ambient=lerp(float3(.078,.094,.11),float3(.031,.043,.048),smoothstep(-2,.8,i.world.z));
     ambient*=.65+.35*saturate(n.y*.5+.5);
     float3 lit=albedo*ambient*cavity;
@@ -78,13 +82,13 @@ float4 worldPS(World i):SV_TARGET {
         float3 d=lightPos[k].xyz-i.world;float ds=max(.06,dot(d,d)),dist=sqrt(ds);
         float atten=saturate(1-dist/lightPos[k].w);atten=atten*atten*6.6/(1+.22*ds);
         float3 L=d/dist;float nl=saturate(dot(L,n));float spec=pow(saturate(dot(n,normalize(L+view))),rough)*wet;
-        lit+=lightColor[k].rgb*atten*(albedo*(.10+.90*nl)*cavity+spec*.43);
+        lit+=lightColor[k].rgb*atten*(albedo*(.10+.90*nl)*cavity+reflectTint*spec*.43);
     }
     float3 to=i.world-lampOrigin.xyz;float ds=max(.018,dot(to,to));float3 L=-to*rsqrt(ds);
     float nl=saturate(dot(n,L)),cosine=dot(-L,lampForward.xyz);
     float beam=smoothstep(.833,.958,cosine)*(.37+.63*smoothstep(.948,.992,cosine));
     float flashLight=control.y*beam*6.6/(1+.105*ds);
-    if(flashLight>.001)lit+=float3(1,.945,.82)*visibility(i.world,nl)*flashLight*(albedo*(.15+.85*nl)+wet*.45*pow(saturate(dot(n,normalize(L+view))),rough));
+    if(flashLight>.001)lit+=float3(1,.945,.82)*visibility(i.world,nl)*flashLight*(albedo*(.15+.85*nl)+reflectTint*wet*.45*pow(saturate(dot(n,normalize(L+view))),rough));
     lit+=albedo*float3(1,.55,.22)*control.z*4.1/(1+.28*ds);
     float distanceToEye=length(i.world-eye.xyz),haze=1-exp(-distanceToEye*.010);
     return float4(lerp(lit,float3(.042,.055,.060),haze*.63),1);

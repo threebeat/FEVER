@@ -929,7 +929,7 @@ export function buildGun(mesh,weapon,options={}) {
     if(!options.helmet)flashlightHand(layer,pose);
     return;
   }
-  firingHand(m,pose,id==='rifle'?sportingBoltGrip(pose):null);supportHand(m,id,pose,shift);spentCase(m,id,pose);
+  firingHand(m,pose,id==='rifle'?sportingBoltGrip(pose):null);supportHand(m,id,pose,shift);if(!pose.stableMesh)spentCase(m,id,pose);
 }
 
 // Contacts change independently from the cached weapon mesh. The map is mounted on

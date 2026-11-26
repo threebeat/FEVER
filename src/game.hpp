@@ -1,12 +1,14 @@
 #pragma once
 #include "types.hpp"
 #include "effects.hpp"
+#include "body.hpp"
 #include <deque>
 namespace fever {
 struct Cue {std::string id,text,direction;Speaker speaker;Bus bus;float duration;int priority;};
 std::vector<Cue> readScript(const std::string& path);
 struct Subtitle {std::string id;std::string text;Speaker speaker=Speaker::Dispatch;float left=0;};
 struct Game {
+    Body body;float idleTime=0,sprintWeight=0,reloadDuration=1.45f;bool reloadEmpty=false,reloadSeated=false;
     Particles particles;Tuning tuning;Brain hostBrain;V hostVelocity{};float hostFlinch=0;
     Stage stage=Stage::Flight; float time=0,age=0,stageStart=0,door=0;
     V pos={0,0,-11},velocity{},camera{},host{},lashTarget{},lastShot{},lastImpact{};

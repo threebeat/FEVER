@@ -54,14 +54,14 @@ struct Spring {
 enum class Stage {Flight,Apron,Reception,Kennels,Lash,Recovery,Examination,Exposure,Report,Filed,Lost};
 enum class Zone {Cabin,Yard,Intake,Kennels,Isolation};
 enum class Bus {World,Radio,Body};
-enum class Sound {Boot,Key,Step,Cloth,Door,Intercom,Hum,Gate,Lash,Round,Strike,Drop,Pulse,Host,Footfall,Rotors,Beep,Reload,Wind,Voice};
+enum class Sound {Boot,Key,Step,Cloth,Door,Intercom,Hum,Gate,Lash,Round,Strike,Drop,Pulse,Host,Footfall,Rotors,Beep,Reload,Seat,Latch,Wind,Voice};
 enum class Speaker {Dispatch,Cole,Ives,Bell,Player};
 struct Event {Sound sound; V pos; Bus bus=Bus::World; float gain=1; Speaker speaker=Speaker::Player; std::string cue;};
 struct Input {float walk=0,strafe=0,dx=0,dy=0;bool aim=false,fire=false,sprint=false,crouch=false,interact=false,reload=false,light=false,jump=false;int weapon=-1,cycle=0;};
 struct Prefs {bool psx=false,steady=false,grain=true,lens=true,nightMix=false;float volume=.78f;};
 struct Tuning {float wait=7.4f,resume=4.1f,catchup=5,run=4.85f,inspect=3.2f,hostSpeed=1.55f,reach=6.8f,spring=7,fov=105,warp=.061f,ring=.85f;};
 enum class Task {Advance,Inspect,Wait,CatchUp,Defend,Treat,Open,Observe,Stagger};
-struct Brain {Task task=Task::Advance;V point{},routeGoal{};float think=0,watch=0,repath=0,fireTimer=0;int interest=-1,target=-1;uint32_t visited=0;std::vector<V> path;};
+struct Brain {Task task=Task::Advance;V point{},routeGoal{},remembered{};float memory=0;float think=0,watch=0,repath=0,fireTimer=0;int interest=-1,target=-1;uint32_t visited=0;std::vector<V> path;};
 struct Person {Brain brain;V velocity{};float stun=0;V pos;float yaw=0,stride=0,pace=0,shot=0;};
 struct Mark {V pos,normal;float time;};
 inline const char* name(Speaker s){constexpr const char* names[]={"DISPATCH","COLE","IVES","BELL","REED"};return names[int(s)];}

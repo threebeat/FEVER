@@ -1,5 +1,6 @@
 #include "game.hpp"
 #include "behavior.hpp"
+#include "audio.hpp"
 #include <fstream>
 #include <sstream>
 namespace fever {
@@ -38,7 +39,7 @@ Game::Game(std::vector<Cue> lines):script(std::move(lines)){
     restart();
 }
 void Game::restart(Stage checkpoint){
-    particles.clear();hostBrain={};hostVelocity={};hostFlinch=0;
+    body={};idleTime=sprintWeight=0;reloadSeated=reloadEmpty=false;particles.clear();hostBrain={};hostVelocity={};hostFlinch=0;
     time=age=stageStart=0;stage=Stage::Flight;pos={0,0,-10};host=patient();lashTarget={};velocity={};
     yaw=pitch=camYaw=camPitch=camRoll=armsYaw=armsPitch=equipLower=aim=duck=height=vertical=0;
     hp=100;stress=kick=flash=shotDelay=reloadTime=stepClock=turnRate=pace=0;
@@ -52,6 +53,7 @@ void Game::restart(Stage checkpoint){
         for(int i=0;i<3;i++)crew[i].pos=V{0,0,pos.z+1.2f-i*.9f}+lanes[i];
         if(stage==Stage::Report){host={1,0,44};hostHP=0;crew[1].pos=host;say("R6_013");}
     }else say("R6_001");
+    body.update(pos,yaw,0,0,false,1.f/90);
     camera=pos+V{0,1.42f,0};for(auto& s:mount)s={};
     mount[0].x=camera.x;mount[1].x=camera.y;mount[2].x=camera.z;handPitch={};handYaw={};
 }
@@ -63,6 +65,11 @@ V Game::craft()const{
 Zone Game::room()const{return stage==Stage::Flight?Zone::Cabin:zone(pos);}
 V Game::source(Speaker s)const{if(s==Speaker::Cole||s==Speaker::Ives||s==Speaker::Bell)return crew[int(s)-1].pos+V{0,1.55f,0};return camera;}
 void Game::emit(Sound s,V p,Bus b,float gain){
+    if(stage==Stage::Exposure && b!=Bus::Radio && (s==Sound::Round||s==Sound::Footfall||s==Sound::Step)){
+        V listener=host+V{0,1.0f,0};auto sound=acousticPath(listener,0,zone(host),p,Bus::World,door);
+        float received=std::hypot(sound.left,sound.right)*gain*(s==Sound::Round?1.f:.35f);
+        if(received>.12f){hostBrain.remembered=p;hostBrain.memory=1.f+3.f*clamp(received);}
+    }
     events.push_back({s,p,b,gain,Speaker::Player,{}});}
 void Game::say(const std::string& id){
     if(std::find(spoken.begin(),spoken.end(),id)!=spoken.end())return;
@@ -166,7 +173,7 @@ void Game::refreshCamera(const Input& in,const Prefs& prefs,float dt){
         base=lerp(cabin,V{0,1.43f,-9.5f},smooth(7.9f,11.6f,age));
         base.y+=amount*.014f*std::sin(time*24);
     }
-    base=base+right(yaw)*(amount*(.015f*std::sin(stepClock)*pace+.045f));
+    base=base+forward(body.yaw)*.19f+right(yaw)*(amount*(.015f*std::sin(stepClock)*pace+.045f));
     base.y+=amount*(pace*.024f*std::sin(stepClock*2)+.004f*std::sin(time*2.2f));
     float frequency=prefs.steady?18:tuning.spring;
     mount[0].follow(base.x,frequency,dt);mount[1].follow(base.y,frequency,dt);mount[2].follow(base.z,frequency,dt);
@@ -182,16 +189,24 @@ void Game::tick(const Input& in,const Prefs& prefs,float dt){
     time+=dt;age+=dt;particles.update(dt);hostFlinch=std::max(0.f,hostFlinch-dt*3.4f);tickScript(dt);
     if(stage==Stage::Lost)return;
     if(stage==Stage::Filed){if(age>4.5f)say("R6_015");return;}
-    yaw+=in.dx;pitch=clamp(pitch+in.dy,-1.28f,1.32f);
+    yaw+=in.dx;pitch=clamp(pitch+in.dy,-1.49f,1.32f);
     turnRate=mix(turnRate,std::min(5.f,std::abs(in.dx)/dt),decay(5,dt));
     if(in.light)torch=!torch;
     equipLower*=std::exp(-18*dt);
-    if(in.weapon>=0||in.cycle){int next=in.weapon>=0?in.weapon:(slot+in.cycle+3)%3;if(next>=0&&next<3&&next!=slot){slot=next;reloadTime=0;equipLower=1;shotDelay=0;emit(Sound::Cloth,camera,Bus::Body);}}
+    if(in.weapon>=0||in.cycle){int next=in.weapon>=0?in.weapon:(slot+in.cycle+3)%3;if(next>=0&&next<3&&next!=slot){slot=next;reloadTime=0;reloadSeated=false;equipLower=1;shotDelay=0;emit(Sound::Cloth,camera,Bus::Body);}}
     aim=mix(aim,in.aim?1:0,decay(26,dt));duck=mix(duck,in.crouch?1:0,decay(12,dt));
     kick=std::max(0.f,kick-5.8f*dt);flash=std::max(0.f,flash-14*dt);impact*=std::exp(-8*dt);damageFlash=std::max(0.f,damageFlash-dt*2);
     shotDelay=std::max(0.f,shotDelay-dt);
-    if(reloadTime>0){reloadTime-=dt;if(reloadTime<=0&&slot<2){int n=std::min((slot==0?24:13)-mag[slot],reserve[slot]);mag[slot]+=n;reserve[slot]-=n;reloadTime=0;}}
-    if(in.reload&&slot<2&&mag[slot]<(slot==0?24:13)&&reserve[slot]>0&&reloadTime==0){reloadTime=1.45f;emit(Sound::Reload,camera,Bus::Body);}
+    if(reloadTime>0){
+        reloadTime=std::max(0.f,reloadTime-dt);
+        float phase=1-reloadTime/reloadDuration;
+        if(!reloadSeated && phase>=(slot==0?.69f:.63f)){
+            int n=std::min((slot==0?24:13)-mag[slot],reserve[slot]);
+            mag[slot]+=n;reserve[slot]-=n;reloadSeated=true;emit(Sound::Seat,camera,Bus::Body,slot==0?.72f:.55f);
+        }
+        if(reloadTime==0&&reloadEmpty)emit(Sound::Latch,camera,Bus::Body,.60f);
+    }
+    if(in.reload&&slot<2&&mag[slot]<(slot==0?24:13)&&reserve[slot]>0&&reloadTime==0){reloadEmpty=mag[slot]==0;reloadSeated=false;reloadDuration=(slot==0?1.57f:1.24f)+(reloadEmpty?.30f:0.f);reloadTime=reloadDuration;emit(Sound::Reload,camera,Bus::Body);}
     if(stage!=Stage::Flight){
         float speed=in.crouch?1.05f:in.aim?1.45f:in.sprint?4.1f:2.3f;
         V target=forward(yaw)*in.walk+right(yaw)*in.strafe;
@@ -203,6 +218,12 @@ void Game::tick(const Input& in,const Prefs& prefs,float dt){
         pace=clamp(len(velocity)/2.5f);float old=stepClock;stepClock+=len(velocity)*dt*2.55f;
         if(height==0&&int(old/pi)!=int(stepClock/pi)){emit(Sound::Step,pos,Bus::Body,.48f+.22f*pace);emit(Sound::Cloth,pos,Bus::Body,.34f);}
     }
+    V root=pos;
+    if(stage==Stage::Flight)root=lerp(craft()+V{0,-.10f,-.25f},V{0,0,-9.5f},smooth(7.9f,11.6f,age));
+    body.update(root,yaw,duck,height,stage==Stage::Flight&&age<7.9f,dt);
+    const bool busy=std::abs(in.dx)+std::abs(in.dy)>.035f||pace>.10f||in.aim||in.fire||reloadTime>0||equipLower>.12f;
+    idleTime=busy?0:idleTime+dt;
+    sprintWeight=mix(sprintWeight,in.sprint&&pace>.65f&&!in.aim&&!in.fire&&reloadTime==0?1.f:0.f,decay(9,dt));
     refreshCamera(in,prefs,dt);moveCrew(dt);
     if(in.fire&&(!wasFiring||slot==0)&&shotDelay<=0&&reloadTime<=0)shoot();
     wasFiring=in.fire;

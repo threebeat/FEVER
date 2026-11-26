@@ -2,6 +2,7 @@
 from pathlib import Path
 import sys, random
 from PIL import Image, ImageDraw, ImageFont
+import io, struct
 assets=Path(__file__).resolve().parents[1]/'assets'
 rng=random.Random(1706)
 fontroot=Path('/usr/share/fonts/truetype')
@@ -9,9 +10,10 @@ def font(path,size):
     return ImageFont.truetype(str(fontroot/path),size)
 mono='dejavu/DejaVuSansMono.ttf'
 bold='open-sans/OpenSans-CondBold.ttf'
+source=assets.parent/'tools/art/materials.jpg'
 if len(sys.argv)>1:
     image=Image.open(sys.argv[1]).convert('RGB')
-    image.resize((1024,512),Image.Resampling.LANCZOS).save(assets/'materials.jpg',quality=91)
+    image.resize((1024,512),Image.Resampling.LANCZOS).save(source,quality=91)
 sheet=Image.new('RGBA',(1024,512));g=ImageDraw.Draw(sheet)
 for i in range(95):
     c=chr(32+i);x=(i%16)*32;y=(i//16)*40
@@ -53,7 +55,7 @@ labels.save(assets/'plaques.jpg',quality=92)
 # Eight tileable surface profiles. XY store normal slopes, B roughness, A local cavity.
 # Details are derived separately per tile so a plaster edge never bleeds into metal.
 from PIL import ImageFilter, ImageChops
-tiles=Image.open(assets/'materials.jpg').convert('L')
+tiles=Image.open(source).convert('L')
 detail=Image.new('RGBA',tiles.size)
 roughness=[181,158,92,212,147,182,107,198]
 for i,base in enumerate(roughness):
@@ -66,4 +68,20 @@ for i,base in enumerate(roughness):
     cavity=ImageChops.subtract(tile,broad,1.4,227)
     rough=tile.point(lambda value: max(32,min(245,base+(value-127)*.32)))
     detail.paste(Image.merge('RGBA',(gradient(1,0),gradient(0,1),rough,cavity)),(x,y))
-detail.save(assets/'surface-response.png',optimize=True)
+def array_dds(name, sheet, codec, format_id):
+    payload=bytearray()
+    for layer in range(8):
+        x=layer%4*256;y=layer//4*256
+        tile=sheet.crop((x,y,x+256,y+256))
+        for size in (256,128,64,32,16,8,4,2,1):
+            level=tile.resize((size,size),Image.Resampling.BOX) if size<256 else tile
+            if size<4:level=level.resize((4,4),Image.Resampling.NEAREST)
+            encoded=io.BytesIO();level.save(encoded,format='DDS',pixel_format=codec)
+            payload.extend(encoded.getvalue()[128:])
+    blocks=(256//4)**2*(8 if codec=='DXT1' else 16)
+    header=struct.pack('<31I',124,0xA1007,256,256,blocks,0,9,*([0]*11),
+                       32,4,int.from_bytes(b'DX10','little'),0,0,0,0,0,0x401008,0,0,0,0)
+    (assets/name).write_bytes(b'DDS '+header+struct.pack('<5I',format_id,3,0,8,0)+payload)
+array_dds('surfaces.dds',Image.open(source).convert('RGB'),'DXT1',71)
+nx,ny,rough,ao=detail.split()
+array_dds('response.dds',Image.merge('RGBA',(rough,nx,ao,ny)),'DXT5',77)

@@ -1,6 +1,7 @@
 #include "behavior.hpp"
 #include "audio.hpp"
 #include "scene.hpp"
+#include "materials.hpp"
 #include "ui.hpp"
 #include <cassert>
 #include <iostream>
@@ -51,10 +52,32 @@ void navigation(){
     for(int i=0;i<1500&&len(point-goal)>.45f;i++){V next=steer(g,point,goal,b,dt);V direction=norm(flat(next-point));V candidate=point+direction*.022f;if(g.passable(candidate))point=candidate;}
     REQUIRE(len(point-goal)<.65f);
 }
+void cameraAndHandling(){
+    Game g;g.restart(Stage::Kennels);
+    auto materials=readMaterials("assets/materials.tsv");REQUIRE(materials[Metal].metallic>materials[Fabric].metallic);
+    REQUIRE(!lowDetailFor(false,false,1,.5f,1,1920));REQUIRE(lowDetailFor(false,false,50,.8f,1,1920));
+    REQUIRE(lowDetailFor(true,false,20,.8f,1,1920)&&!lowDetailFor(false,false,20,.8f,1,1920));
+    REQUIRE(lowDetailFor(false,true,1,1,1,960));
+    auto bodyMeshes=sceneInstances(g);auto shadowMeshes=sceneInstances(g,true);
+    auto count=[](const auto& meshes,const std::string& name){return std::count_if(meshes.begin(),meshes.end(),[&](const auto& i){return i.id==name;});};
+    REQUIRE(count(bodyMeshes,"reed-boot")==2 && count(shadowMeshes,"reed-shoulders")==1);
+    Input down;down.dy=-2;down.crouch=true;g.tick(down,{},dt);down.dy=0;
+    for(int i=0;i<110;i++)g.tick(down,{},dt);
+    REQUIRE(g.camPitch<-1.4f&&g.camera.y<1.f);
+    for(auto& f:g.body.feet){REQUIRE(f.ankle.y>.08f&&f.ankle.y<.11f);REQUIRE(f.knee.y>f.ankle.y);}
+    wait(g,7);REQUIRE(g.idleTime>6);
+    Input r;r.reload=true;Input change;change.weapon=1;
+    g.mag[0]=6;g.tick(r,{},dt);float partial=g.reloadDuration;int reserve=g.reserve[0];
+    wait(g,.31f);g.tick(change,{},dt);REQUIRE(g.mag[0]==6&&g.reserve[0]==reserve&&g.reloadTime==0);
+    change.weapon=0;g.tick(change,{},dt);g.mag[0]=0;g.tick(r,{},dt);REQUIRE(g.reloadEmpty && g.reloadDuration>partial);
+    wait(g,g.reloadDuration*.75f);REQUIRE(g.mag[0]==24 && g.reserve[0]==reserve-24);
+    change.weapon=1;g.tick(change,{},dt);REQUIRE(g.mag[0]==24 && !g.reloadSeated);
+    g.mag[1]=4;g.tick(r,{},dt);REQUIRE(g.reloadDuration<partial);
+}
 void audio(){
     auto rightSource=acousticPath({0,1,15},0,Zone::Kennels,{2,1,16},Bus::World,1);REQUIRE(rightSource.right>rightSource.left);
     auto outside=acousticPath({0,1,-1},0,Zone::Yard,{0,1,2},Bus::World,1),closed=acousticPath({0,1,-1},0,Zone::Yard,{0,1,2},Bus::World,0);REQUIRE(closed.cutoff<outside.cutoff&&closed.left<outside.left);
-    Mixer m;auto list=readScript("docs/DIALOGUE.md");m.loadTakes("assets/voice",list);REQUIRE(m.recordedTakes()==0);
+    Mixer m;auto list=readScript("docs/DIALOGUE.md");m.loadTakes("tests/missing-takes",list);REQUIRE(m.recordedTakes()==0);
     std::array<int16_t,1024> out{};MixState state;m.play({Sound::Voice,{},Bus::World,1,Speaker::Cole,"R6_004"});m.render(out.data(),512,state);
     REQUIRE(std::all_of(out.begin(),out.end(),[](auto x){return x==0;}));m.play({Sound::Round,{},Bus::Body,1});
     m.render(out.data(),512,state);REQUIRE(std::any_of(out.begin(),out.end(),[](auto x){return std::abs(x)>1000;}));
@@ -88,5 +111,5 @@ void audio(){
 
 }
 }
-int main(){try{titleAndData();navigation();patrolAndIncident();audio();std::cout<<"Relay Six native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
+int main(){try{titleAndData();navigation();patrolAndIncident();cameraAndHandling();audio();std::cout<<"Relay Six native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
 

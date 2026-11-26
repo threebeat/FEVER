@@ -77,6 +77,12 @@ void cage(Builder& b,int side,float z,int number){
 }
 Pose pose(V p,float yaw,float morph=0){Pose o;o.p=p;o.x=right(yaw);o.z=forward(yaw);o.morph=morph;return o;}
 }
+bool lowDetailFor(bool previous,bool psx,float metres,float radius,float projection,int width){
+    if(psx)return true;
+    if(metres<2.f)return false;
+    float diameter=radius*projection*std::min(width,1920)/metres;
+    return diameter<(previous?88.f:62.f);
+}
 std::vector<Lamp> lamps(){return {
     {{-2.6f,3.38f,-.68f},{1.0f,.54f,.24f},8},{{3.7f,2.75f,-9},{.33f,.54f,.75f},9},
     {{-2.4f,3.08f,5.75f},{.62f,.90f,.79f},6.6f},{{.65f,3.03f,12.75f},{.91f,.76f,.44f},6.3f},
@@ -171,23 +177,23 @@ std::map<std::string,MeshData> buildWorld(const Game& g){
 }
 MeshData readMesh(const std::string& path){
     std::ifstream f(path,std::ios::binary);char magic[4];uint32_t nv=0,ni=0;
-    if(!f.read(magic,4)||(std::string(magic,4)!="FVM1"&&std::string(magic,4)!="FVM2"))throw std::runtime_error("Cannot read mesh "+path);
-    bool animated=magic[3]=='2';
+    if(!f.read(magic,4)||(std::string(magic,4)!="FVM1"&&std::string(magic,4)!="FVM2"&&std::string(magic,4)!="FVM3"))throw std::runtime_error("Cannot read mesh "+path);
+    int stride=magic[3]=='3'?44:magic[3]=='2'?32:20;
     f.read((char*)&nv,4);f.read((char*)&ni,4);if(nv>65535||ni>2000000||ni%3)throw std::runtime_error("Invalid mesh "+path);
     MeshData data;data.vertices.reserve(nv);data.indices.reserve(ni);
     for(uint32_t i=0;i<nv;i++){
-        unsigned char b[32]{};if(!f.read((char*)b,animated?32:20))throw std::runtime_error("Incomplete mesh "+path);
+        unsigned char b[44]{};if(!f.read((char*)b,stride))throw std::runtime_error("Incomplete mesh "+path);
         auto i16=[&](int k){return int16_t(int(b[k])+(int(b[k+1])<<8));};
         V p={i16(0)/2400.f,i16(2)/2400.f,i16(4)/2400.f},n={int8_t(b[6])/127.f,int8_t(b[7])/127.f,int8_t(b[8])/127.f},c={b[9]/255.f,b[10]/255.f,b[11]/255.f};
         int legacy=b[12],mat=legacy==12?Cold:legacy==13?Red:legacy==5?Metal:legacy==8?Fabric:legacy==6?DarkGlass:legacy==7?Enamel:Fabric;
         auto track=[&](int j){return V{i16(j)/3200.f,i16(j+2)/3200.f,i16(j+4)/3200.f};};
-        data.vertices.push_back({p,n,c,float(mat),0,0,track(14),track(20),track(26)});
+        data.vertices.push_back({p,n,c,float(mat),0,0,track(14),track(20),track(26),track(32),track(38)});
     }
     for(uint32_t i=0;i<ni;i++){uint16_t index=0;f.read((char*)&index,2);if(!f||index>=nv)throw std::runtime_error("Invalid mesh indices");data.indices.push_back(index);}
     return data;
 }
 std::vector<Instance> sceneInstances(const Game& g,bool shadows){
-    std::vector<Instance> list;auto add=[&](std::string id,V p,float a=0){list.push_back({std::move(id),pose(p,a)});};
+    std::vector<Instance> list;auto add=[&](std::string id,V p,float a=0,int key=0){list.push_back({std::move(id),pose(p,a),key});};
     float z=g.camera.z;
     if(z<15)add("yard",{});if(z<26)add("intake",{});if(z>-15&&z<46)add("kennel-a",{});if(z>0)add("kennel-b",{});if(z>17)add("isolation",{});
     if(z<22)add("intake-door",{0,g.door*2.86f,0});
@@ -203,26 +209,52 @@ std::vector<Instance> sceneInstances(const Game& g,bool shadows){
         p.reaction=clamp(a.stun*2);
         if(g.stage==Stage::Examination&&i==1)p.action=smooth(1.55f,.8f,len(flat(a.pos-Game::patient())));
         else p.action=smooth(0,.11f,a.shot);
-        list.push_back({id,p});
+        list.push_back({id,p,1+i});
     }
-    for(int i=0;i<7;i++){float zz=14.f+i*3.24f;float x=i%2?-4.15f:4.10f;if(std::abs(z-zz)<25)add("sleeping-dog",{x,.29f,zz},i*.71f);}
+    for(int i=0;i<7;i++){float zz=14.f+i*3.24f;float x=i%2?-4.15f:4.10f;if(std::abs(z-zz)<25)add("sleeping-dog",{x,.29f,zz},i*.71f,4+i);}
     float wake=g.stage==Stage::Lash?smooth(0,.62f,g.age):0;
     if(z>4&&z<47){
         auto p=pose({-2.92f-(g.stage>=Stage::Recovery?.89f:0),.28f,25.83f},1.57f,.5f+.18f*std::sin(g.time*6));
         p.action=g.lashAmount;p.reaction=g.lashHP<=0?g.lashAmount:0;
-        list.push_back({wake>.15f?"hound":"sleeping-dog",p});
+        list.push_back({wake>.15f?"hound":"sleeping-dog",p,11});
     }
-    if(z>18){add("patient",Game::patient(),-.6f);
+    if(z>18){add("patient",Game::patient(),-.6f,12);
         if(g.stage==Stage::Exposure){Pose p=pose(g.host,std::atan2(g.pos.x-g.host.x,g.pos.z-g.host.z),.5f+.45f*std::sin(g.time*7));
-            p.kneel=1-smooth(.8f,2.5f,g.age);p.reaction=g.hostFlinch;list.push_back({g.age<1.5f?"medic":"infected",p});}
-        if(g.stage>=Stage::Report&&g.stage!=Stage::Lost)add("medic-down",g.host,.9f);}
+            p.kneel=1-smooth(.8f,2.5f,g.age);p.reaction=g.hostFlinch;list.push_back({g.age<1.5f?"medic":"infected",p,13});}
+        if(g.stage>=Stage::Report&&g.stage!=Stage::Lost)add("medic-down",g.host,.9f,14);}
+    if(g.body.ready&&g.stage!=Stage::Lost){
+        const auto& body=g.body;
+        Pose coat=pose(body.pelvis,body.yaw);list.push_back({"reed-coat",coat});
+        if(shadows)list.push_back({"reed-shoulders",coat});
+        for(int i=0;i<2;i++){
+            const auto& f=body.feet[i];float side=i?1.f:-1.f;
+            auto limb=[&](V from,V to,float rest){
+                Pose p;p.p=from;V up=norm(from-to);
+                V across=right(body.yaw);
+                p.z=norm(cross(across,up));p.x=norm(cross(up,p.z))*side;p.y=(from-to)*(1.f/rest);
+                return p;
+            };
+            list.push_back({"reed-thigh",limb(f.hip,f.knee,.42f)});
+            list.push_back({"reed-shin",limb(f.knee,f.ankle,.41f)});
+            auto boot=pose(f.ankle,body.yaw);boot.x=boot.x*side;list.push_back({"reed-boot",boot});
+        }
+    }
     if(!shadows&&(g.stage!=Stage::Flight||g.age>10.9f)&&g.stage!=Stage::Lost){
         Pose p;p.z=forward(g.armsYaw,g.armsPitch);p.x=right(g.armsYaw);p.y=norm(cross(p.z,p.x));
-        float phase=g.slot==2?1-clamp(g.shotDelay/.49f):g.reloadTime>0?1-clamp(g.reloadTime/1.45f):1;
+        float phase=g.slot==2?1-clamp(g.shotDelay/.49f):g.reloadTime>0?1-clamp(g.reloadTime/g.reloadDuration):1;
         float enter=smooth(.015f,.34f,phase),exchange=smooth(.37f,.71f,phase),leave=1-smooth(.73f,.99f,phase);
         p.action=enter*(1-exchange);p.reaction=exchange*leave;
         float reload=enter*leave;
         p.p=g.camera+p.y*(-.012f-.024f*reload-.14f*g.equipLower+g.kick*.029f)+p.x*(.012f*std::sin(g.stepClock)*g.pace*(1-g.aim))+p.z*(-.034f*g.kick);
+        float downward=smooth(.70f,1.43f,-g.camPitch)*(1-g.aim);
+        float quiet=1-smooth(0,.40f,g.pace);
+        float breath=std::sin(g.time*(2.0f+.40f*g.stress))*(.0025f+.0025f*g.stress)*(1-.72f*g.aim);
+        float fidget=g.idleTime>5?smooth(0,.8f,std::fmod(g.idleTime-5,9.2f))*(1-smooth(.9f,2.2f,std::fmod(g.idleTime-5,9.2f))):0;
+        p.idle=fidget*(g.slot==0?.44f:g.slot==1?.28f:.33f);
+        p.bolt=g.slot<2?std::max(g.kick*g.kick,(g.mag[g.slot]==0||g.reloadTime>0&&g.reloadEmpty)?1-smooth(.78f,.95f,phase)*(g.reloadTime>0?1.f:0.f):0.f):0.f;
+        p.p=p.p+p.y*(breath*quiet-.12f*g.sprintWeight-.042f*downward)+p.x*(.18f*downward+.045f*g.sprintWeight);
+        float roll=.16f*g.sprintWeight+.044f*fidget+.018f*std::sin(g.time*1.13f)*quiet*(1-g.aim);
+        V oldX=p.x;p.x=p.x*std::cos(roll)+p.y*std::sin(roll);p.y=p.y*std::cos(roll)-oldX*std::sin(roll);
         p.morph=g.aim;list.push_back({g.slot==0?"carbine":g.slot==1?"pistol":"knife",p});
     }
     return list;

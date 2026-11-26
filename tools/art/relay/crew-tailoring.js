@@ -53,7 +53,7 @@ export function tailoredLimb(m,a,b,profile,cloth,material=twill) {
  const len=Math.hypot(ux,uy);
  const X=len>.001?[-uy/len,ux/len,0]:[1,0,0];
  const Z=[uy*X[2]-uz*X[1],uz*X[0]-ux*X[2],ux*X[1]-uy*X[0]];
- const sides=16;
+ const sides=m.lowDetail?8:16;
  let last;
  for(const [phase,width,depth,bias] of profile){
   const root=mix(a,b,phase),ring=[];
@@ -74,12 +74,16 @@ const calf=[[0,.077,.072,0],[.18,.081,.086,-.011],[.46,.080,.091,-.013],[.69,.06
 const upperSleeve=[[0,.083,.079,0],[.12,.098,.093,.003],[.44,.089,.080,-.005],[.59,.079,.070,.005],[.70,.084,.074,.009],[.88,.061,.061,-.008],[1,.064,.06,0]];
 const foreSleeve=[[0,.063,.06,0],[.17,.073,.071,.005],[.44,.062,.057,.002],[.68,.052,.055,.002],[.80,.059,.052,-.004],[.89,.047,.046,.001],[1,.043,.041,.003]];
 
-export function uniformLeg(m,hip,knee,foot,side,cloth,lower){
- tailoredLimb(m,hip,knee,thigh,cloth);tailoredLimb(m,knee,foot,calf,lower);
+export function uniformLeg(m,hip,knee,foot,side,cloth,lower,part="all"){
+ if(part==="all"||part==="shin")tailoredLimb(m,knee,foot,calf,lower);
+ if(part==="all"||part==="thigh"){
+ tailoredLimb(m,hip,knee,thigh,cloth);
  const pocket=mix(hip,knee,.39);
  shell(m,offset(pocket,side*.088,.012,-.011),[[-.094,.024,.068],[-.078,.039,.077],[.036,.041,.082],[.077,.024,.073]],cloth,8,twill);
  const panel=offset(pocket,side*.125,.048,-.011);
  quad(m,offset(panel,0,.037,-.07),offset(panel,0,.037,.07),offset(panel,side*.004,-.020,.056),offset(panel,side*.007,-.03,-.064),lower,twill);
+ }
+ if(part!=="all"&&part!=="boot")return;
  shell(m,foot,[[-.087,.074,.136,0,.040],[-.067,.081,.143,0,.037],[-.058,.078,.142,0,.041]],sole,10,rubber);
  shell(m,foot,[[-.059,.077,.140,0,.04],[-.031,.077,.137,0,.039],[-.012,.072,.126,0,.041],[.014,.066,.083,0,.005],[.063,.064,.070,0,-.013],[.104,.066,.063,0,-.018]],leather,10,rubber);
  const tongue=offset(foot,0,.036,.064);

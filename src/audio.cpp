@@ -60,7 +60,7 @@ Mixer::Mixer():delayL(4801),delayR(6311){
     {Sound::Hum,.85f,99,4,.09f,.24f},{Sound::Gate,1.36f,471,4.1f,.4f,.67f},{Sound::Lash,.67f,94,5,.81f,.69f},
     {Sound::Round,.38f,88,18,.79f,.98f},{Sound::Strike,.26f,630,18,.8f,.52f},{Sound::Drop,.53f,48,8,.50f,.70f},
     {Sound::Pulse,.34f,54,16,.15f,.45f},{Sound::Host,.94f,54,4.4f,.70f,.49f},{Sound::Footfall,.31f,82,16,.65f,.60f},
-    {Sound::Rotors,1.f,27,3,.20f,.4f},{Sound::Beep,.17f,372,14,.03f,.22f},{Sound::Reload,.68f,536,11,.72f,.42f},{Sound::Wind,.8f,52,4,.96f,.31f}};
+    {Sound::Rotors,1.f,27,3,.20f,.4f},{Sound::Beep,.17f,372,14,.03f,.22f},{Sound::Seat,.14f,162,27,.76f,.48f},{Sound::Latch,.11f,922,36,.69f,.32f},{Sound::Reload,.21f,536,19,.72f,.34f},{Sound::Wind,.8f,52,4,.96f,.31f}};
     for(auto r:list){
         auto& out=effects[r.id];out.resize(size_t(r.seconds*rate));float lp=0,last=0,angle=0;
         for(size_t i=0;i<out.size();i++){

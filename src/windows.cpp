@@ -103,6 +103,11 @@ void screenshotProof(HWND window,Renderer& r,Game& g){
     for(int mode=0;mode<2;mode++){p.psx=mode!=0;m.build(g,p,true,16.f/9,1,false);
         for(int i=0;i<8;i++)r.draw(window,g,p,m,.1f);
         r.writeFrame(std::string("proof/")+(p.psx?"psx":"photo")+".ppm");}
+    p.psx=false;g.pitch=-1.39f;
+    for(int j=0;j<70;j++)g.tick({},p,1.f/90);
+    m.build(g,p,true,16.f/9,1,false);r.draw(window,g,p,m,.04f);r.writeFrame("proof/standing-body.ppm");
+    Input down;down.crouch=true;for(int j=0;j<65;j++)g.tick(down,p,1.f/90);
+    m.build(g,p,true,16.f/9,1,false);r.draw(window,g,p,m,.04f);r.writeFrame("proof/crouching-body.ppm");
     if(g.script.size()!=15)throw std::runtime_error("Missing dialogue rows");
 }
 int run(HINSTANCE instance,const std::string& args){

@@ -130,23 +130,23 @@ void updatePatrol(Game& g,int i,float dt){
     }
 }
 void advanceHost(Game& g,float dt){
-    auto& brain=g.hostBrain;brain.think-=dt;
+    auto& brain=g.hostBrain;brain.think-=dt;brain.memory=std::max(0.f,brain.memory-dt);
     if(brain.think<=0){
-        brain.think=.23f;V selected=g.pos;float best=1000;
+        brain.think=.23f;V selected=brain.memory>0?brain.remembered:g.host;float best=1000;brain.target=-2;
         for(int k:{-1,0,2}){
             V target=k<0?g.pos:g.crew[k].pos;if(k>=0&&g.crew[k].stun>0)continue;
             V o=g.host+V{0,1.13f,0},d=target+V{0,1.15f,0}-o;float dist=len(d);
             bool sight=g.wallDistance(o,norm(d))>=dist-.23f;
-            float score=dist+(sight?0:8)+(k<0?-1.4f:0);
+            if(!sight)continue;float score=dist+(k<0?-1.4f:0);
             if(score<best){best=score;selected=target;brain.target=k;}
-        }brain.point=selected;
+        }brain.point=selected;if(brain.target!=-2){brain.remembered=selected;brain.memory=2.5f;}
     }
     float distance=len(flat(brain.point-g.host));
     if(distance>1.06f){V waypoint=steer(g,g.host,brain.point,brain,dt);
         auto vel=norm(flat(waypoint-g.host))*(g.tuning.hostSpeed*(1-.60f*g.hostFlinch));
         g.hostVelocity=lerp(g.hostVelocity,vel,decay(6,dt));V next=g.host+g.hostVelocity*dt;if(g.passable(next))g.host=next;
     }
-    g.attackTimer-=dt;if(distance<1.42f&&g.attackTimer<=0){g.emit(Sound::Host,g.host);
+    g.attackTimer-=dt;if(brain.target!=-2&&distance<1.42f&&g.attackTimer<=0){g.emit(Sound::Host,g.host);
         if(brain.target<0){g.hp-=18;g.damageFlash=1;g.impact=.85f;}
         else{g.crew[brain.target].stun=2.8f;g.emit(Sound::Drop,g.crew[brain.target].pos);}
         g.attackTimer=1.5f;
