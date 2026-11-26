@@ -50,11 +50,10 @@ std::vector<V> route(const Game& g,V from,V goal){
     }
     std::vector<V> path;for(int i=best;i!=start&&i>=0;i=prev[i])path.push_back(point(i));std::reverse(path.begin(),path.end());return path;
 }
-struct Landmark {V stand,look;int role;};
+struct Landmark {V stand,look;};
 const Landmark interests[]={
-    {{-2.13f,0,5.1f},{-3.6f,1.1f,5.6f},0},{{2.9f,0,7.2f},{4.6f,1.4f,7},2},{{-.2f,0,9.6f},{.54f,0,10.5f},1},
-    {{-.91f,0,15.65f},{-3.1f,.45f,15.4f},0},{{1.12f,0,18.45f},{3.3f,1.6f,18.7f},2},{{-1.24f,0,19.55f},{-2,1.7f,19.6f},1},
-    {{-.94f,0,34.8f},{-3.2f,1,36.4f},2},{{1.09f,0,36.4f},{2.05f,1.6f,39},0}};
+    {{-2.13f,0,5.1f},{-3.6f,1.1f,5.6f}},{{-.91f,0,15.65f},{-3.1f,.45f,15.4f}},
+    {{1.12f,0,18.45f},{3.3f,1.6f,18.7f}},{{1.09f,0,36.4f},{2.05f,1.6f,39}}};
 }
 V steer(const Game& g,V from,V goal,Brain& b,float dt){
     b.repath-=dt;
@@ -68,27 +67,27 @@ V steer(const Game& g,V from,V goal,Brain& b,float dt){
     if(skip)b.path.erase(b.path.begin(),b.path.begin()+skip);
     return b.path.front();
 }
-void updatePatrol(Game& g,int i,float dt){
-    auto& a=g.crew[i];auto& b=a.brain;const auto& t=g.tuning;V look=forward(a.yaw);float lane=i==0?-.78f:i==1?.63f:.03f;
+void updatePatrol(Game& g,float dt){
+    auto& a=g.crew.front();auto& b=a.brain;const auto& t=g.tuning;V look=forward(a.yaw);constexpr float lane=-.78f;
     bool fight=g.stage==Stage::Lash||g.stage==Stage::Exposure;float sep=len(flat(a.pos-g.pos));
     b.think-=dt;b.watch=std::max(0.f,b.watch-dt);a.stun=std::max(0.f,a.stun-dt);
     if(a.stun>0){a.pace=mix(a.pace,0,decay(10,dt));b.task=Task::Stagger;return;}
-    bool treatment=g.stage==Stage::Examination&&i==1;
+    bool treatment=g.stage==Stage::Examination;
     if(fight||treatment||g.stage==Stage::Apron||b.think<=0){
-        b.think=.24f+.045f*i;
+        b.think=.24f;
         if(fight){
             b.task=Task::Defend;
-            b.point=g.stage==Stage::Lash?V{lane,0,clamp(g.pos.z+.9f-i*.7f,20,27)}:V{i==0?-1.46f:2.88f,0,42.5f+i*.36f};
+            b.point=g.stage==Stage::Lash?V{lane,0,clamp(g.pos.z+.9f,20,27)}:V{-1.46f,0,42.2f};
         }else if(treatment){b.task=Task::Treat;b.point=Game::patient()+V{-.66f,0,-.5f};}
         else if(g.stage==Stage::Apron&&!g.interlock){
-            b.task=Task::Open;b.point=i==0?V{1.03f,0,-.67f}:V{lane,0,-2.2f-i*.73f};
+            b.task=Task::Open;b.point={1.03f,0,-.67f};
         }else if(g.stage>=Stage::Examination){
-            b.task=Task::Observe;b.point=i==0?V{-.77f,0,42.6f}:V{2.5f,0,41.5f};
+            b.task=Task::Observe;b.point={-.77f,0,42.6f};
         }else{
             bool behind=g.pos.z>a.pos.z+t.catchup||(std::abs(g.pos.x-a.pos.x)>5&&sep>t.catchup+2);
             bool wait=a.pos.z>g.pos.z+1 && (sep>t.wait||(b.task==Task::Wait&&sep>t.resume));
             if(behind||(b.task==Task::CatchUp&&g.pos.z>a.pos.z+2.25f)){
-                b.task=Task::CatchUp;b.point={g.pos.x+lane,0,g.pos.z-.92f-i*.33f};
+                b.task=Task::CatchUp;b.point={g.pos.x+lane,0,g.pos.z-.92f};
             }else if(wait){
                 if(b.task!=Task::Wait)b.point=a.pos;b.task=Task::Wait;
             }else{
@@ -97,23 +96,21 @@ void updatePatrol(Game& g,int i,float dt){
                 }
                 if(b.interest<0){
                     for(int j=0;j<int(std::size(interests));j++){const auto& mark=interests[j];
-                        if(mark.role!=i||(b.visited&(1u<<j))||std::abs(mark.stand.z-g.pos.z)>5.7f||len(flat(a.pos-mark.stand))>6.5f)continue;
+                        if((b.visited&(1u<<j))||std::abs(mark.stand.z-g.pos.z)>5.7f||len(flat(a.pos-mark.stand))>6.5f)continue;
                         b.interest=j;b.watch=t.inspect+len(flat(a.pos-mark.stand))/1.4f;break;}
                 }
                 if(b.interest>=0){b.task=Task::Inspect;b.point=interests[b.interest].stand;}
                 else{b.task=Task::Advance;
                     float end=g.stage==Stage::Apron?8.8f:g.stage==Stage::Reception?20.5f:g.stage==Stage::Kennels?25.f:45.f;
-                    b.point={lane,0,std::min(end,std::max(a.pos.z,g.pos.z+t.wait+.85f-i*1.35f))};}
+                    b.point={lane,0,std::min(end,std::max(a.pos.z,g.pos.z+t.wait+.85f))};}
             }
         }
     }
     if(!g.passable(b.point)){b.point.x=b.point.z>37&&b.point.z<40?1.3f:lane;}
     V wp=steer(g,a.pos,b.point,b,dt),delta=flat(wp-a.pos);float remaining=len(delta);
     float speed=b.task==Task::CatchUp?t.run:b.task==Task::Treat?2.65f:1.48f;
-    V avoid{};for(int j=0;j<3;j++)if(j!=i&&!(g.stage>=Stage::Exposure&&j==1)){
-        V away=flat(a.pos-g.crew[j].pos);float d=len(away);if(d>.01f&&d<.76f)avoid=avoid+norm(away)*(.76f-d)*1.5f;}
     V old=a.pos;V desired=remaining>.06f?norm(delta)*std::min(speed,remaining/std::max(dt,.0001f)):V{};
-    a.velocity=lerp(a.velocity,desired+avoid,decay(8,dt));V nx=a.pos+V{a.velocity.x*dt,0,0};if(g.passable(nx))a.pos=nx;
+    a.velocity=lerp(a.velocity,desired,decay(8,dt));V nx=a.pos+V{a.velocity.x*dt,0,0};if(g.passable(nx))a.pos=nx;
     V nz=a.pos+V{0,0,a.velocity.z*dt};if(g.passable(nz))a.pos=nz;
     float distance=len(flat(a.pos-old));a.pace=mix(a.pace,clamp(distance/dt/1.4f),decay(8,dt));
     float previous=a.stride;a.stride+=distance*4.0f;
@@ -121,19 +118,19 @@ void updatePatrol(Game& g,int i,float dt){
     if(fight)look=(g.stage==Stage::Lash?g.dog():g.host)-a.pos;
     else if(treatment)look=g.patient()-a.pos;
     else if(b.task==Task::Inspect&&remaining<.7f)look=interests[b.interest].look-a.pos;
-    else if(b.task==Task::Wait){look=std::sin(g.time*.58f+i)>.24f?g.pos-a.pos:V{std::sin(g.time*.54f+i),0,1};}
+    else if(b.task==Task::Wait){look=std::sin(g.time*.58f)>.24f?g.pos-a.pos:V{std::sin(g.time*.54f),0,1};}
     else if(remaining>.18f)look=delta;
     a.yaw+=wrap(std::atan2(look.x,look.z)-a.yaw)*decay(5.6f,dt);
-    if(fight && i!=1){
-        b.fireTimer-=dt;bool eligible=g.stage==Stage::Lash?(g.age>2.15f+i*.23f&&g.lashAmount>.34f&&g.lashHP>0):(g.age>6.4f+i*.61f&&g.hostHP>0);
-        if(eligible&&b.fireTimer<=0){g.shoot(true,i);b.fireTimer=(g.stage==Stage::Lash?1.08f:2.40f)+i*.15f;}
+    if(fight){
+        b.fireTimer-=dt;bool eligible=g.stage==Stage::Lash?(g.age>1.55f&&g.lashAmount>.34f&&g.lashHP>0):(g.age>5.3f&&g.hostHP>0);
+        if(eligible&&b.fireTimer<=0){g.shoot(true,0);b.fireTimer=g.stage==Stage::Lash?.95f:1.45f;}
     }
 }
 void advanceHost(Game& g,float dt){
     auto& brain=g.hostBrain;brain.think-=dt;brain.memory=std::max(0.f,brain.memory-dt);
     if(brain.think<=0){
         brain.think=.23f;V selected=brain.memory>0?brain.remembered:g.host;float best=1000;brain.target=-2;
-        for(int k:{-1,0,2}){
+        for(int k=-1;k<int(g.crew.size());++k){
             V target=k<0?g.pos:g.crew[k].pos;if(k>=0&&g.crew[k].stun>0)continue;
             V o=g.host+V{0,1.13f,0},d=target+V{0,1.15f,0}-o;float dist=len(d);
             bool sight=g.wallDistance(o,norm(d))>=dist-.23f;

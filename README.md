@@ -1,6 +1,6 @@
 # FEVER
 
-One night, three police bodycams. Respond as Reed to a late disturbance at a Michigan animal-control facility. Pick up a Louisiana deputy's recording when a daughter asks someone to check her mother's house. Before dawn, follow a Vermont officer up a ski-area service road outside Stowe.
+One night, three police bodycams. Drive as Reed with Cole in the passenger seat. The two of you answer a late disturbance at a Michigan animal-control facility. Reed carries a service pistol. Pick up a Louisiana deputy's recording when a daughter asks someone to check her mother's house. Before dawn, follow a Vermont officer up a ski-area service road outside Stowe.
 
 **[Download FEVER for Windows x64](https://github.com/threebeat/FEVER/releases/latest/download/FEVER-Windows-x64.zip)**. Extract the ZIP and open **FEVER.exe**. The native game runs on Windows 10/11 with a Direct3D 11 feature-level 11_0 graphics device. Begin Shift starts in Michigan. Select Recording opens any call directly. Firing Range offers seven weapons and resetting steel plates. Practice leaves the call checkpoint intact. Both visual modes and the camera, mouse and stick adjustments are in Options. Settings and checkpoints live in `%LOCALAPPDATA%\FEVER\shift.dat`.
 

@@ -113,7 +113,8 @@ void screenshotProof(HWND window,Renderer& r,Game& g){
     m.build(g,p,true,16.f/9,1,false);r.draw(window,g,p,m,.04f);r.writeFrame("proof/crouching-body.ppm");
     auto capture=[&](const char* label){for(int i=0;i<8;i++){m.build(g,p,true,16.f/9,1,false);r.draw(window,g,p,m,.08f);}r.writeFrame(std::string("proof/")+label+".ppm");};
     for(auto rec:{Recording::Animal,Recording::House,Recording::Grey}){
-        g.start(rec);for(int i=0;i<306;i++)g.tick({},p,1.f/90);capture(rec==Recording::Animal?"michigan-patrol":rec==Recording::House?"louisiana-patrol":"vermont-patrol");
+        g.start(rec);for(int i=0;i<(rec==Recording::Animal?540:306);i++)g.tick({},p,1.f/90);capture(rec==Recording::Animal?"michigan-patrol":rec==Recording::House?"louisiana-patrol":"vermont-patrol");
+        if(rec==Recording::Animal){p.psx=true;capture("michigan-passenger-psx");p.psx=false;}
         g.start(rec,rec==Recording::Animal?Stage::Report:Stage::Apron,rec==Recording::House?2:rec==Recording::Grey?2:0);
         if(rec==Recording::Animal)g.pos={.5f,0,61};for(int j=0;j<71;j++)g.tick({},p,1.f/90);
         capture(rec==Recording::Animal?"lake-street":rec==Recording::House?"alder-kitchen":"north-spur");}
@@ -204,7 +205,7 @@ int run(HINSTANCE instance,const std::string& args){
                 pending.uv|=keys.tap['V']||(pad.pressed&XINPUT_GAMEPAD_DPAD_LEFT);pending.jump|=keys.tap[VK_SPACE]||(pad.pressed&XINPUT_GAMEPAD_A);pending.interact|=keys.tap['E']||(pad.pressed&XINPUT_GAMEPAD_X);
                 pending.reload|=keys.tap['R']||((pad.pressed&XINPUT_GAMEPAD_X)&&g.prompt(true).empty());
                 pending.cycle+=keys.wheel>0?-1:keys.wheel<0?1:0;if(pad.pressed&XINPUT_GAMEPAD_Y)pending.cycle++;
-                for(int j=0;j<(g.recording==Recording::Range?7:3);j++)if(keys.tap['1'+j])pending.weapon=j;
+                for(int j=0;j<(g.recording==Recording::Range?7:int(g.loadout.size()));j++)if(keys.tap['1'+j])pending.weapon=j;
                 accum+=dt;constexpr float step=1.f/90;int steps=std::min(9,int(accum/step));
                 if(steps){input.dx=pending.dx/steps;input.dy=pending.dy/steps;
                     for(int j=0;j<steps;j++){

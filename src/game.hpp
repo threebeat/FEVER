@@ -9,7 +9,7 @@ std::vector<Cue> readScript(const std::string& path);
 struct Subtitle {std::string id;std::string text;Speaker speaker=Speaker::Dispatch;float left=0;};
 struct Contact {V p,origin;int kind;float hp,clock=0,flinch=0;bool awake=false;};
 struct Game {
-    Recording recording=Recording::Animal;std::array<Weapon,3> loadout{Weapon::Auto,Weapon::Pistol,Weapon::Knife};
+    Recording recording=Recording::Animal;std::vector<Weapon> loadout{Weapon::Pistol};
     Weapon weapon()const{return loadout[slot];}const WeaponSpec& handling()const{return spec(weapon());}
     std::vector<Box> animalSolids;std::vector<Contact> contacts;
     int beat=0,selection=0,plateHits=0,tetherActor=-1,greyHits=0;std::array<float,6> plates{};
@@ -21,18 +21,18 @@ struct Game {
     void buildCall();void patrolTick(const Input&,const Prefs&,float);
     void fieldTick(const Input&,float);void fieldCrew(float);void choose(int);
     bool fieldHit(V,V,float&,float);void grenadeTick(float);
-    float ground(V)const;V vehicle()const;V muzzle()const;
+    float ground(V)const;V vehicle()const;float passengerExit()const;V passengerPosition()const;V muzzle()const;
     std::string prompt(bool pad)const;const char* voiceName(Speaker)const;
     Body body;float idleTime=0,sprintWeight=0,reloadDuration=1.45f;bool reloadEmpty=false,reloadSeated=false;
-    Particles particles;Tuning tuning;Brain hostBrain;V hostVelocity{};float hostFlinch=0;
+    Particles particles;Tuning tuning;Brain hostBrain;V hostVelocity{};float hostFlinch=0,hostFacing=-.60f;
     Stage stage=Stage::Flight; float time=0,age=0,stageStart=0,door=0;
     V pos={0,0,-11},velocity{},camera{},host{},lashTarget{},lastShot{},lastImpact{};
     float yaw=0,pitch=0,camYaw=0,camPitch=0,camRoll=0,armsYaw=0,armsPitch=0,equipLower=0,aim=0,duck=0,height=0,vertical=0;
     float hp=100,stress=0,kick=0,flash=0,shotDelay=0,reloadTime=0,stepClock=0,turnRate=0,pace=0;
-    float allyTimer=0,enemyTimer=0,attackTimer=0,lashAmount=0,impact=0,exposure=0,hostHP=8,lashHP=7,damageFlash=0;
+    float allyTimer=0,enemyTimer=0,attackTimer=0,lashAmount=0,impact=0,exposure=0,hostHP=7,lashHP=5,damageFlash=0;
     bool torch=true,patientSeen=false,hitOnce=false,playerShotLash=false,interlock=false,wasFiring=false;
-    int slot=0,mag[2]={24,13},reserve[2]={72,39},shots=0,crewShots=0,callsign=17;
-    std::array<Person,3> crew; std::array<Spring,6> mount{};Spring handYaw{},handPitch{};
+    int slot=0,mag[2]{},reserve[2]{},shots=0,crewShots=0,callsign=17;
+    std::vector<Person> crew; std::array<Spring,6> mount{};Spring handYaw{},handPitch{};
     std::vector<Box> solids;std::vector<Event> events;std::vector<Mark> marks;
     std::vector<Cue> script;std::deque<std::string> queue;std::vector<std::string> spoken;
     Subtitle subtitle;int captionPriority=0;float captionGap=0;

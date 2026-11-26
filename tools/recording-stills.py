@@ -5,6 +5,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 proof = Path(sys.argv[1])
+with Image.open(proof / "michigan-patrol.ppm") as cruiser:
+    cruiser.save(proof / "FEVER-after-hours.jpg", quality=92, optimize=True)
 rows = [("michigan-patrol", "lake-street"), ("louisiana-patrol", "alder-kitchen"), ("vermont-patrol", "north-spur"), ("photo", "training-annex")]
 sheet = Image.new("RGB", (800, 4 * 244), "#111614")
 draw = ImageDraw.Draw(sheet)

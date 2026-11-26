@@ -9,13 +9,12 @@ void hoop(Builder& b,V c,V x,V y,float r,float width,V col,int mat,int n=24){
     V prev=c+x*r;for(int i=1;i<=n;i++){float a=i*2*pi/n;V p=c+(x*std::cos(a)+y*std::sin(a))*r;b.pipe(prev,p,width,width,col,mat,6);prev=p;}}
 void panel(Builder& b,float x,float y,float z,float w,float h,V c,int mat){b.box({x,y,z},{w,h,.032f},c,mat);}
 void car(Builder& b){
-    b.box({0,.38f,0},{1.85f,.40f,4.34f},dark,Polymer);
+    b.box({0,.235f,0},{1.85f,.15f,4.34f},dark,Polymer);
     for(float z:{-1.57f,1.62f})b.box({0,.69f,z},{1.82f,.34f,1.2f},rock,Enamel);
     b.box({0,1.69f,-.16f},{1.63f,.075f,1.84f},iron,Enamel);
     for(int s:{-1,1}){
         float x=s*.87f;b.pipe({x,.85f,1.03f},{s*.77f,1.67f,.65f},.045f,.039f,rock,Polymer);b.pipe({x,.82f,-1.32f},{s*.77f,1.67f,-.99f},.060f,.048f,rock);
-        b.box({x,.66f,-.16f},{.11f,.43f,2.06f},iron,Polymer);b.box({x,.90f,-.19f},{.097f,.059f,1.93f},dark,Polymer);
-        b.box({s*.92f,.99f,.55f},{.26f,.13f,.19f},dark,Polymer);panel(b,s*.925f,.99f,.445f,.20f,.087f,rock,DarkGlass);
+        b.box({x,.57f,-1.03f},{.11f,.56f,.54f},iron,Polymer);b.box({x,.41f,-.14f},{.10f,.14f,1.98f},dark,Polymer);
         for(float z:{-1.35f,1.36f}){b.pipe({x-.10f,.35f,z},{x+.1f,.35f,z},.32f,.32f,dark,Polymer,16);b.pipe({s*.96f,.35f,z},{s*.98f,.35f,z},.18f,.17f,rock,Metal,12);}
         panel(b,s*.62f,.73f,2.236f,.44f,.135f,light,Cold);panel(b,s*.61f,.71f,-2.23f,.44f,.125f,{.76f,.08f,.04f},Red);}
     b.box({0,.80f,.71f},{1.69f,.38f,.62f},dark,Polymer);b.box({0,.87f,.405f},{1.62f,.15f,.07f},iron,Polymer);
@@ -35,11 +34,33 @@ void car(Builder& b){
     for(int j=0;j<8;j++)panel(b,.095f+j*.047f,.837f,.279f,.027f,.011f,j%3?light:amber,j%3?Cold:Warm);
     b.box({.02f,1.48f,.6f},{.25f,.075f,.08f},dark);panel(b,.02f,1.48f,.552f,.23f,.06f,rock,DarkGlass);
 }
+void cruiserDoor(Builder& b,int side){
+    b.box({0,.66f,-.75f},{.092f,.40f,1.53f},iron,Enamel);
+    b.box({-.043f*side,.73f,-.76f},{.046f,.225f,1.43f},dark,Polymer);
+    b.box({0,.90f,-.72f},{.091f,.058f,1.44f},dark,Polymer);
+    b.box({-.073f*side,.74f,-.76f},{.081f,.055f,.49f},iron,Polymer);
+    b.box({-.076f*side,.836f,-.75f},{.02f,.021f,.13f},trim,Metal);
+    b.box({.055f*side,.83f,-1.27f},{.025f,.026f,.126f},trim,Metal);
+    b.pipe({0,.90f,-1.49f},{-.07f*side,1.64f,-1.43f},.024f,.022f,iron,Polymer);
+    b.pipe({-.07f*side,1.64f,-1.43f},{-.075f*side,1.64f,-.09f},.022f,.017f,iron,Polymer);
+    b.box({side*.089f,.98f,-.19f},{.23f,.12f,.16f},dark,Polymer);
+    panel(b,side*.089f,.98f,-.28f,.192f,.082f,rock,DarkGlass);
+}
+void passengerBelt(Builder& b){
+    V a{.235f,1.26f,-.065f},buckle{-.154f,.67f,.136f};
+    V points[]={a,{.135f,1.18f,.159f},{-.018f,.96f,.195f},buckle};
+    for(int i=1;i<4;++i){
+        V width{.024f,.015f,0};b.face(points[i-1]-width,points[i-1]+width,points[i]+width,points[i]-width,dark,Fabric);
+    }
+    b.box(buckle,{.062f,.047f,.026f},iron,Metal);
+}
 V onWheel(float a){return {-.36f+std::cos(a)*.185f,.85f+std::sin(a)*.16f,.24f+std::sin(a)*.065f};}
-void hands(Builder& b){
+void steeringWheel(Builder& b){
     for(int i=0;i<32;i++)b.pipe(onWheel(i*2*pi/32),onWheel((i+1)*2*pi/32),.016f,.016f,dark,Hide,8);
     for(float a:{-.49f,3.62f,4.72f})b.pipe({-.36f,.85f,.24f},onWheel(a),.028f,.015f,iron,Polymer);
     b.box({-.36f,.85f,.228f},{.14f,.087f,.045f},dark,Polymer);
+}
+void drivingHands(Builder& b){
     for(int j=0;j<2;j++){int s=j?1:-1;V hand=onWheel(j?.66f:2.65f),wrist=hand+V{s*.032f,-.045f,-.056f},elbow={-.35f+s*.29f,.64f,-.28f};
         b.pipe(elbow,lerp(elbow,wrist,.65f),.071f,.064f,{.135f,.156f,.175f},Fabric,10);b.pipe(lerp(elbow,wrist,.65f),wrist,.064f,.045f,{.18f,.20f,.22f},Fabric,10);
         b.pipe(wrist,hand,.036f,.043f,{.53f,.37f,.27f},Skin,9);for(int k=0;k<4;k++){V p=hand+V{s*(k*.013f-.028f),.022f,.008f};b.pipe(p,p+V{s*.012f,-.032f,.02f},.009f,.007f,{.55f,.395f,.28f},Skin,6);}}
@@ -168,7 +189,10 @@ void range(Builder& b){b.box({0,-.08f,13},{14,.15f,49},rock,Aggregate);for(float
 }
 void buildLocations(std::map<std::string,MeshData>& out){
     auto make=[&](std::string id,auto fn){Builder b;fn(b);out.emplace(id,std::move(b.m));};
-    make("cruiser",car);make("parked-car",parkedCar);make("steering",hands);make("wiper",[](Builder& b){b.pipe({-.72f,.96f,.98f},{-.07f,1.20f,.86f},.011f,.009f,dark,Polymer);});
+    make("cruiser",car);make("parked-car",parkedCar);make("steering",steeringWheel);make("driving-hands",drivingHands);
+    make("passenger-belt",passengerBelt);
+    make("driver-door",[](Builder& b){cruiserDoor(b,-1);});make("passenger-door",[](Builder& b){cruiserDoor(b,1);});
+    make("wiper",[](Builder& b){b.pipe({-.72f,.96f,.98f},{-.07f,1.20f,.86f},.011f,.009f,dark,Polymer);});
     make("lake-front",[](Builder& b){street(b,false);});make("lake-street",[](Builder& b){street(b,true);});make("alder-street",porch);
     for(auto& r:houseRooms)make(std::string("la-")+r.name,[&](Builder& b){houseRoom(b,r);});
     make("la-stairs",[](Builder& b){stairs(b,{5,0,15},{1,0,0},6,3.2f,2.65f);stairs(b,{0,0,20},{0,0,1},7,-3,2.65f);});
@@ -197,11 +221,27 @@ V Game::muzzle()const{
 }
 void locationInstances(const Game& g,std::vector<Instance>& out,bool shadows){
     auto add=[&](const std::string& id,V pos={},float yaw=0,int key=0){out.push_back({id,at(pos,yaw),key});};
-    if(g.recording!=Recording::Range){bool driving=g.stage==Stage::Flight;V carPos=driving?g.vehicle():V{-2.35f,0,-9.65f};
-        if(len(carPos-g.camera)<55){add("cruiser",carPos);if(driving&&!shadows){
+    if(g.recording!=Recording::Range){bool driving=g.stage==Stage::Flight,paired=g.recording==Recording::Animal;
+        V carPos=driving||paired?g.vehicle():V{-2.35f,0,-9.65f};
+        if(len(carPos-g.camera)<55){add("cruiser",carPos);
+            for(int side:{-1,1}){
+                float t=g.age-(side>0?.22f:0.f);
+                float swing=paired&&driving?1.10f*(smooth(12.9f,13.58f,t)-smooth(14.47f,14.78f,t)):0;
+                add(side>0?"passenger-door":"driver-door",carPos+V{side*.87f,0,.75f},-side*swing);
+            }
+            if(paired&&driving){
+                Pose p=at(g.crew.front().pos);
+                p.morph=smooth(4.85f,5.65f,g.age)-smooth(7.50f,8.40f,g.age);
+                p.action=g.passengerExit();out.push_back({"cole-passenger",p,1});
+                if(g.age<12.96f)add("passenger-belt",p.p);
+            }
+            if(!driving)add("steering",carPos);
+            if(driving&&!shadows){
             Pose steer=at(carPos);float turn=.055f*std::sin(g.time*1.18f)+.10f*(smooth(4.1f,6.1f,g.age)-smooth(7.4f,8.6f,g.age));
             steer.x={std::cos(turn),std::sin(turn),0};steer.y={-std::sin(turn),std::cos(turn),0};V hub={-.36f,.85f,.24f};
-            steer.p=carPos+hub-steer.x*hub.x-steer.y*hub.y-steer.z*hub.z;out.push_back({"steering",steer});Pose w=at(carPos);float a=(g.recording==Recording::Grey?.08f:.15f)*std::sin(g.time*2.4f);
+            steer.p=carPos+hub-steer.x*hub.x-steer.y*hub.y-steer.z*hub.z;out.push_back({"steering",steer});
+            if(!paired||g.age<13.7f){Pose arms=steer;if(paired)arms.p=arms.p+V{-.18f,-.36f,-.16f}*smooth(12.92f,13.7f,g.age);out.push_back({"driving-hands",arms});}
+            Pose w=at(carPos);float a=(g.recording==Recording::Grey?.08f:.15f)*std::sin(g.time*2.4f);
             w.x={std::cos(a),std::sin(a),0};w.y={-std::sin(a),std::cos(a),0};
             V pivot={-.72f,.96f,.98f};w.p=carPos+pivot-w.x*pivot.x-w.y*pivot.y-w.z*pivot.z;out.push_back({"wiper",w});}}}
     switch(g.recording){
@@ -253,6 +293,10 @@ std::vector<Lamp> callLights(const Game& g){
     if(g.recording==Recording::Grey){add({1,2.5f,13},amber,7.5f);add({-3,2,9},light,5);add({3.5f,6,58},amber,6);if(g.beat==4)add(flareAt,{1,.16f,.05f},15);}
     if(g.recording==Recording::Range)for(int i=0;i<8;i++)add({i%2?3.1f:-3.1f,3.2f,-7.f+i*5.7f},i%2?light:amber,10);
     if(g.stage==Stage::Flight){V v=g.vehicle();add(v+V{.26f,1.1f,.31f},light*.55f,1.1f);add(v+V{0,.8f,6.8f},light,9);
+        if(g.recording==Recording::Animal){
+            float spill=.45f+.27f*std::cos((v.z+36.f)*.40f);
+            add(v+V{.95f,1.53f,.31f},amber*spill,2.0f);
+        }
         if(g.recording==Recording::Animal&&g.age<8.7f)add({2.15f,.70f,-16.f-3.72f*g.age},amber*.73f,6.5f);}
     if(g.flash>.001f)add(g.muzzle(),{1,.72f,.32f},3.8f+g.flash*11.f);
     if(g.blast>.03f)add(g.blastPos,{1,.48f,.14f},2.5f+10*g.blast);

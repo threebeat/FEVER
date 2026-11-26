@@ -14,30 +14,49 @@ const char* Game::voiceName(Speaker s)const{
     if(s==Speaker::Ives&&recording==Recording::Grey)return "PARK";return name(s);
 }
 void Game::choose(int n){
+    if(recording!=Recording::Range)return;
     static const Weapon options[]={Weapon::Auto,Weapon::Hunting,Weapon::Semi,Weapon::Sniper,Weapon::Pistol,Weapon::Knife,Weapon::Launcher};
     selection=(n+7)%7;Weapon w=options[selection];slot=w==Weapon::Knife?2:0;loadout[slot]=w;
     fireBuffer=shotDelay=reloadTime=0;ejectIn=-1;equipLower=1;reloadSeated=false;
     if(slot!=2){mag[slot]=handling().capacity;reserve[slot]=mag[slot]*20;}
 }
 V Game::vehicle()const{
+    if(recording==Recording::Animal&&stage!=Stage::Flight)return michiganParking;
     float a=smooth(1.12f,8.7f,age),b=smooth(8.91f,13.4f,age);
-    return {-.78f-.48f*std::sin(a*pi)+.78f*b,0,age<8.81f?mix(recording==Recording::Grey?-47.f:-40.f,-29.5f,a):-20+10.5f*b};
+    V at={-.78f-.48f*std::sin(a*pi)+.78f*b,0,age<8.81f?mix(recording==Recording::Grey?-47.f:-40.f,-29.5f,a):-20+10.5f*b};
+    if(recording==Recording::Animal){at.x+=michiganParking.x*b;at.z+=(michiganParking.z+9.5f)*b;}
+    return at;
+}
+float Game::passengerExit()const{return stage==Stage::Flight?smooth(13.38f,14.85f,age):1.f;}
+V Game::passengerPosition()const{
+    return vehicle()+lerp({.43f,0,-.38f},{1.47f,0,-.30f},passengerExit());
 }
 void Game::patrolTick(const Input& in,const Prefs& prefs,float dt){
-    yaw=clamp(yaw+in.dx,-.66f,.66f);pitch=clamp(pitch+in.dy,-.4f,.35f);float glance=yaw,tilt=pitch;
-    yaw+=.033f*std::sin(time*.72f)+.16f*(smooth(3,4.5f,age)-smooth(5.7f,6.6f,age))-.92f*smooth(13.2f,14.8f,age);
-    pitch-=.075f+.055f*std::sin(time*.68f);body.update(vehicle()+V{-.35f,0,-.12f},0,0,0,true,dt);refreshCamera(in,prefs,dt);yaw=glance;pitch=tilt;
+    bool paired=recording==Recording::Animal;
+    float limit=paired?1.93f:.66f;
+    yaw=clamp(yaw+in.dx,-limit,limit);pitch=clamp(pitch+in.dy,-.4f,.35f);float glance=yaw,tilt=pitch;
+    float glanceRight=paired?(.85f+.46f*smooth(3.70f,5.20f,age))*(1-smooth(7.12f,8.42f,age)):.16f*(smooth(3,4.5f,age)-smooth(5.7f,6.6f,age));
+    float manual=paired?clamp(1.f-std::abs(glance)/.60f):1.f;
+    float driverTurn=paired?smooth(12.98f,13.92f,age)*(1-smooth(14.12f,14.98f,age)):smooth(13.2f,14.8f,age);
+    yaw+=.033f*std::sin(time*.72f)+manual*(glanceRight-.92f*driverTurn);
+    pitch-=.075f+.055f*std::sin(time*.68f);
+    if(paired){crew.front().pos=passengerPosition();pos=vehicle()+lerp({-.35f,0,-.38f},driverCurb,smooth(13,14.8f,age));}
+    body.update(paired?pos:vehicle()+V{-.35f,0,-.12f},0,0,0,true,dt);
+    refreshCamera(in,prefs,dt);yaw=glance;pitch=tilt;
     if(recording!=Recording::Range){
         std::string prefix=recording==Recording::Animal?"MI":recording==Recording::House?"LA":"VT";
         if(age>1.42f)say(prefix+"_001");if(age>5.35f)say(prefix+"_002");if(age>9.25f&&recording!=Recording::Animal)say(prefix+"_003");
         if(age>8.6f&&age<13&&int((age-dt)*1.7f)!=int(age*1.7f))emit(Sound::Turn,camera,Bus::Body,.36f);
         if(age>13.1f&&age-dt<=13.1f)emit(Sound::Door,camera,Bus::Body,.55f);
     }
+    if(paired&&age>=14.9f&&age-dt<14.9f)emit(Sound::Door,crew.front().pos,Bus::World,.40f);
     if(age<(recording==Recording::Range?1.36f:15.f))return;
-    pos={0,0,recording==Recording::Range?-7.8f:-9.5f};yaw=pitch=camYaw=camPitch=0;enter(Stage::Apron);
+    pos=paired?michiganParking+driverCurb:V{0,0,recording==Recording::Range?-7.8f:-9.5f};
+    if(paired){yaw=camYaw;pitch=camPitch;}else{yaw=pitch=camYaw=camPitch=0;}
+    enter(Stage::Apron);
     door=recording==Recording::Grey||recording==Recording::Range?1:0;camera=pos+V{0,1.43f,.19f};mount={};
-    mount[0].x=camera.x;mount[1].x=camera.y;mount[2].x=camera.z;
-    for(int i=0;i<3;i++)crew[i].pos=pos+V{(i-1)*.88f,0,1.5f+i*.24f};
+    mount[0].x=camera.x;mount[1].x=camera.y;mount[2].x=camera.z;mount[3].x=yaw;mount[4].x=pitch;
+    if(!paired)for(int i=0;i<int(crew.size());i++)crew[i].pos=pos+V{(i-1)*.88f,0,1.5f+i*.24f};
 }
 namespace {
 bool near(V a,V b,float r){return len(flat(a-b))<r&&std::abs(a.y-b.y)<2.2f;}
@@ -57,7 +76,8 @@ V move(Game& g,V from,V to,float travel){
 void Game::buildCall(){
     solids.clear();contacts.clear();auto add=[&](V pos,int kind,float h){contacts.push_back({pos,pos,kind,h});};
     if(recording==Recording::Animal){
-        solids=animalSolids;for(int i=0;i<10;i++)add({float(i*17%27-13),0,float(58+i*11%23)},i%3==1?1:0,i%3==1?3.f:5.f);
+        solids=animalSolids;box(solids,michiganParking+V{0,.65f,0},{1.78f,1.30f,4.27f});
+        for(int i=0;i<10;i++)add({float(i*17%27-13),0,float(58+i*11%23)},i%3==1?1:0,i%3==1?3.f:5.f);
     }else if(recording==Recording::House){
         for(auto& r:houseRooms)roomWalls(solids,r);
         for(auto b:{Box{{-4.65f,0,3},{-3.05f,1.05f,6.9f}},Box{{3.1f,0,2},{4.65f,.85f,4.6f}},Box{{-4.9f,0,12.2f},{-3.9f,.92f,18.4f}},Box{{1.8f,0,17.2f},{4,.84f,18.6f}},Box{{17.0f,3.2f,11},{19.85f,4.02f,14.4f}},Box{{12.0f,3.2f,25},{14.3f,3.94f,27.2f}},Box{{23.7f,3.2f,12},{25.2f,3.9f,14.3f}},Box{{-5.4f,-3,34.3f},{-2.75f,-1.9f,36.2f}}})solids.push_back(b);
@@ -88,12 +108,11 @@ bool Game::passable(V p)const{
     return true;
 }
 void Game::fieldCrew(float dt){
-    int count=recording==Recording::House?1:recording==Recording::Range?0:2;
-    for(int j=0;j<count;j++){int i=recording==Recording::Animal&&j==1?2:j;auto& a=crew[i];a.stun=std::max(0.f,a.stun-dt);if(a.stun>0){a.pace=0;a.shot=0;continue;}a.shot=std::max(0.f,a.shot-dt);a.brain.fireTimer-=dt;
+    for(int i=0;i<int(crew.size());i++){auto& a=crew[i];a.stun=std::max(0.f,a.stun-dt);if(a.stun>0){a.pace=0;a.shot=0;continue;}a.shot=std::max(0.f,a.shot-dt);a.brain.fireTimer-=dt;
         V goal=pos+V{i?1.1f:-1.15f,0,-1.5f};
         if(recording==Recording::House){const V lead[]={{-.7f,0,-1},{0,0,6.4f},{0,0,14},{3.8f,0,15},{0,0,19},{0,-3,31},{0,-3,37}};goal=lead[std::min(6,beat)];}
         else if(recording==Recording::Grey&&pos.z<47&&std::abs(pos.x)<5)goal={i?.88f:-1.3f,0,pos.z+3.8f-i*1.6f};
-        else if(recording==Recording::Animal)goal={i?1.2f:-1,0,std::min(70.f,pos.z+2)};
+        else if(recording==Recording::Animal)goal={-1,0,std::min(70.f,pos.z+2)};
         float gap=len(flat(pos-a.pos));if(gap>7.5f&&dot(flat(a.pos-pos),flat(goal-pos))>0&&len(flat(goal-pos))>2)goal=a.pos;
         if(recording==Recording::House&&std::abs(goal.z-a.pos.z)>3)goal={0,0,a.pos.z+clamp(goal.z-a.pos.z,-2,2)};
         V old=a.pos;a.pos=move(*this,a.pos,goal,(gap>8?4.5f:1.48f)*dt);float travelled=len(flat(a.pos-old));a.stride+=travelled*4;

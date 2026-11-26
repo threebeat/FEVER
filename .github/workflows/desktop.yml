@@ -74,9 +74,9 @@ jobs:
           cd ..
           tag="recordings-${BUILD_SHA:0:10}"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" FEVER-Windows-x64.zip stills/FEVER-recordings.jpg --clobber
+            gh release upload "$tag" FEVER-Windows-x64.zip stills/FEVER-recordings.jpg stills/FEVER-after-hours.jpg --clobber
           else
-            gh release create "$tag" FEVER-Windows-x64.zip stills/FEVER-recordings.jpg --target "$BUILD_SHA" --latest --title "FEVER · Night recordings" --notes "After Hours, The Open Door, The Grey and the county firing range. Extract the ZIP and open FEVER.exe."
+            gh release create "$tag" FEVER-Windows-x64.zip stills/FEVER-recordings.jpg stills/FEVER-after-hours.jpg --target "$BUILD_SHA" --latest --title "FEVER · Night recordings" --notes "After Hours, The Open Door, The Grey and the county firing range. Extract the ZIP and open FEVER.exe."
           fi
       - name: Refresh the existing download and cooked art in the source checkout
         working-directory: source
@@ -91,7 +91,7 @@ jobs:
           cp ../FEVER-Windows-x64.zip downloads/FEVER-Windows-x64.zip
           cp ../stills/FEVER-recordings.jpg docs/media/night-recordings.jpg
           cp ../portable/assets/plaques.jpg assets/
-          for mesh in hunting semi sniper launcher grey grey-watch witch golem; do
+          for mesh in hunting semi sniper launcher grey grey-watch witch golem cole-passenger cole-patrol kennel-attendant; do
             cp "../portable/assets/meshes/$mesh.fvm" "../portable/assets/meshes/$mesh-low.fvm" assets/meshes/
           done
           git add downloads/FEVER-Windows-x64.zip docs/media/night-recordings.jpg assets/plaques.jpg assets/meshes

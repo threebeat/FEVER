@@ -25,6 +25,11 @@ std::vector<float> readMono(const std::string& path){
 }
 Spatial acousticPath(V p,float yaw,Zone room,V src,Bus bus,float door,Recording recording){
     if(bus!=Bus::World)return {.68f,.68f,bus==Bus::Radio?3200.f:10500.f,bus==Bus::Radio?.015f:.04f};
+    if(room==Zone::Cabin){
+        V offset=src-p;float pan=clamp(dot(norm(offset),right(yaw)),-.89f,.89f);
+        float gain=1.f/(1.f+.18f*len(offset));
+        return {gain*std::sqrt(.5f*(1-pan)),gain*std::sqrt(.5f*(1+pan)),12300.f,.08f};
+    }
     if(recording!=Recording::Animal || (room==Zone::Yard&&p.z>51)){
         auto region=[&](V q){if(recording==Recording::Grey)return rect(q,0,14.5f,8,9)?1:0;
             if(recording==Recording::House){for(int j=0;j<6;j++){const auto& r=houseRooms[j];if(rect(q,r.center.x,r.center.z,r.w,r.d)&&std::abs(q.y-r.center.y-1.1f)<2.1f)return j+1;}return q.z<0?0:7;}
@@ -114,7 +119,7 @@ void Mixer::play(const Event& e){
 MixState mixState(const Game& g,const Prefs& p,bool active){
     MixState m;m.listener=g.camera;m.yaw=g.camYaw;m.door=g.door;m.pace=g.pace;m.turn=g.turnRate;m.stress=g.stress;m.impact=g.impact;
     m.recording=g.recording;m.engine=g.stage==Stage::Flight&&g.recording!=Recording::Range?1-smooth(11,14.5f,g.age):0;m.volume=p.volume;m.recoverySeconds=g.tuning.ring;m.room=g.room();m.night=p.nightMix;m.active=active;
-    for(int i=0;i<3;i++)m.crew[i]=g.crew[i].pos+V{0,1.48f,0};return m;
+    for(int i=0;i<int(g.crew.size());++i)m.crew[i]=g.source(Speaker(int(Speaker::Cole)+i));return m;
 }
 void Mixer::render(int16_t* out,int frames,const MixState& m){
     while(frames>0){

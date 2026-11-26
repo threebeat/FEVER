@@ -7,7 +7,6 @@
 namespace fever {
 namespace {
 std::string trim(std::string s){auto a=s.find_first_not_of(" \r\t"),b=s.find_last_not_of(" \r\t");return a==s.npos?"":s.substr(a,b-a+1);}
-const std::array<V,3> lanes={V{-.85f,0,0},V{.75f,0,0},V{-.05f,0,0}};
 }
 std::vector<Cue> readScript(const std::string& path){
     std::ifstream f(path);std::string row;std::vector<Cue> out;
@@ -45,27 +44,30 @@ void Game::restart(Stage checkpoint){start(recording,checkpoint);}
 void Game::start(Recording r,Stage checkpoint,int savedBeat){
     recording=r;beat=selection=plateHits=greyHits=0;tetherActor=-1;beatAge=fieldTime=aggro=phaseOut=watched=tether=viewKick=fireBuffer=slide=runGrace=blast=0;
     plates={};ejectIn=-1;projectile=dragged=uv=cellarKey=false;buildCall();
-    loadout={Weapon::Auto,Weapon::Pistol,Weapon::Knife};
+    loadout=r==Recording::Animal?std::vector<Weapon>{Weapon::Pistol}:std::vector<Weapon>{Weapon::Auto,Weapon::Pistol,Weapon::Knife};
     if(r==Recording::House)loadout={Weapon::Pistol,Weapon::Semi,Weapon::Knife};
     if(r==Recording::Grey)loadout={Weapon::Hunting,Weapon::Pistol,Weapon::Knife};
-    body={};idleTime=sprintWeight=0;reloadSeated=reloadEmpty=false;particles.clear();hostBrain={};hostVelocity={};hostFlinch=0;
+    body={};idleTime=sprintWeight=0;reloadSeated=reloadEmpty=false;particles.clear();hostBrain={};hostVelocity={};hostFlinch=0;hostFacing=-.60f;
     time=age=stageStart=0;stage=Stage::Flight;pos={0,0,-10};host=patient();lashTarget={};velocity={};
     yaw=pitch=camYaw=camPitch=camRoll=armsYaw=armsPitch=equipLower=aim=duck=height=vertical=0;
     hp=100;stress=kick=flash=shotDelay=reloadTime=stepClock=turnRate=pace=0;
-    allyTimer=enemyTimer=attackTimer=lashAmount=impact=exposure=damageFlash=0;hostHP=8;lashHP=7;
+    allyTimer=enemyTimer=attackTimer=lashAmount=impact=exposure=damageFlash=0;hostHP=7;lashHP=5;
     patientSeen=hitOnce=playerShotLash=interlock=wasFiring=false;door=0;torch=true;shots=crewShots=slot=0;
-    for(int i=0;i<2;i++){mag[i]=spec(loadout[i]).capacity;reserve[i]=mag[i]*4;}queue.clear();events.clear();spoken.clear();marks.clear();subtitle={};captionGap=0;
-    for(int i=0;i<3;i++){crew[i]={};crew[i].pos=lanes[i]+V{0,0,-7.6f-i*.75f};}
+    for(int i=0;i<2;++i){mag[i]=i<int(loadout.size())?spec(loadout[i]).capacity:0;reserve[i]=mag[i]*4;}
+    queue.clear();events.clear();spoken.clear();marks.clear();subtitle={};captionGap=0;captionPriority=0;
+    crew.assign(r==Recording::Range?0:r==Recording::Grey?2:1, Person{});
+    if(r==Recording::Animal){pos=vehicle()+V{-.35f,0,-.38f};crew.front().pos=passengerPosition();}
     if(r==Recording::Animal&&(checkpoint==Stage::Kennels||checkpoint==Stage::Recovery||checkpoint==Stage::Report)){
         door=1;stage=checkpoint;time=checkpoint==Stage::Kennels?40:checkpoint==Stage::Recovery?85:140;
         pos={.4f,0,checkpoint==Stage::Kennels?12.1f:checkpoint==Stage::Recovery?32.8f:42.2f};
-        for(int i=0;i<3;i++)crew[i].pos=V{0,0,pos.z+1.2f-i*.9f}+lanes[i];
-        if(stage==Stage::Report){host={1,0,44};hostHP=0;crew[1].pos=host;say("MI_013");}
+        crew.front().pos=pos+V{-.85f,0,1.2f};
+        if(stage==Stage::Report){host=patient();hostHP=0;age=.65f;say("MI_013");}
     }else if(checkpoint!=Stage::Flight){stage=Stage::Apron;door=r==Recording::House?0:1;pos={0,0,-8.5f};}
+    if(r==Recording::Animal&&stage==Stage::Apron){door=0;pos=michiganParking+driverCurb;crew.front().pos=passengerPosition();}
     if(r==Recording::House&&savedBeat>0){beat=savedBeat;door=1;cellarKey=beat>=4;pos=beat==1?V{0,0,4}:beat==2?V{0,0,13}:beat==3?V{3.6f,0,15}:beat==4?V{0,0,18}:V{0,-3,28};}
     if(r==Recording::Grey&&savedBeat>0){beat=std::min(2,savedBeat);pos=beat==1?V{0,0,6}:V{0,0,20};fieldTime=25;aggro=.2f;}
     if(r==Recording::Range)choose(0);
-    if(r!=Recording::Animal)for(int i=0;i<3;i++)crew[i].pos=pos+V{-1.f+i,0,1.25f};
+    if(r!=Recording::Animal)for(int i=0;i<int(crew.size());i++)crew[i].pos=pos+V{-1.f+i,0,1.25f};
     if(stage==Stage::Flight)emit(Sound::Boot,pos,Bus::Body);
     body.update(pos,yaw,0,0,false,1.f/90);
     camera=pos+V{0,1.42f,0};for(auto& s:mount)s={};
@@ -77,7 +79,13 @@ Zone Game::room()const{
     if(recording==Recording::House)return pos.z<0?Zone::Yard:pos.y<-.3f?Zone::Isolation:Zone::Intake;
     if(recording==Recording::Grey)return rect(pos,0,14.5f,8,9)?Zone::Intake:Zone::Yard;return Zone::Kennels;
 }
-V Game::source(Speaker s)const{if(s==Speaker::Cole||s==Speaker::Ives||s==Speaker::Bell)return crew[int(s)-1].pos+V{0,1.55f,0};return camera;}
+V Game::source(Speaker s)const{
+    const int member=int(s)-int(Speaker::Cole);
+    if(member<0||member>=int(crew.size()))return camera;
+    float mouth=1.55f;
+    if(recording==Recording::Animal&&stage==Stage::Flight)mouth=mix(1.34f,1.55f,passengerExit());
+    return crew[member].pos+V{0,mouth,.06f};
+}
 void Game::emit(Sound s,V p,Bus b,float gain){
     if(stage==Stage::Exposure && b!=Bus::Radio && (s==Sound::Round||s==Sound::Footfall||s==Sound::Step)){
         V listener=host+V{0,1.0f,0};auto sound=acousticPath(listener,0,zone(host),p,Bus::World,door);
@@ -115,8 +123,8 @@ void Game::enter(Stage next){
     case Stage::Lash:lashTarget=camera;say("MI_007");emit(Sound::Gate,dog());particles.burst(dog(),{1,.3f,0},Matter::Steel,14);emit(Sound::Lash,dog());impact=.18f;break;
     case Stage::Recovery:say("MI_008");break;
     case Stage::Examination:say("MI_009");break;
-    case Stage::Exposure:say("MI_011");host=crew[1].pos;particles.burst(host+V{0,.9f,0},{.3f,1,.2f},Matter::Fluid,17);emit(Sound::Drop,host);break;
-    case Stage::Report:crew[1].pos=host;say("MI_013");particles.burst(host+V{0,.9f,0},{.3f,1,.2f},Matter::Fluid,17);emit(Sound::Drop,host);break;
+    case Stage::Exposure:say("MI_011");host=patient();crew.front().stun=.55f;particles.burst(host+V{0,.9f,0},{.3f,1,.2f},Matter::Fluid,17);emit(Sound::Drop,host);break;
+    case Stage::Report:hostFacing=std::atan2(pos.x-host.x,pos.z-host.z);say("MI_013");particles.burst(host+V{0,.9f,0},{.3f,1,.2f},Matter::Fluid,17);emit(Sound::Drop,host);break;
     case Stage::Filed:say("MI_017");break;
     case Stage::Lost:queue.clear();subtitle={};emit(Sound::Drop,camera,Bus::Body);break;
     default:break;
@@ -140,6 +148,7 @@ V Game::lashPoint(float t)const{
 }
 V Game::aimRay()const{return forward(yaw,pitch);}
 void Game::shoot(bool ally,int index){
+    if(ally&&(index<0||index>=int(crew.size())))return;
     V o=ally?crew[index].pos+V{0,1.30f,0}:camera;
     V target=stage==Stage::Lash?lashPoint(.60f):host+V{0,1.15f,0};
     V d=ally?norm(target-o):forward(yaw,pitch+viewKick);float wall=wallDistance(o,d);
@@ -170,17 +179,15 @@ bool Game::canReport()const{return recording==Recording::Animal&&stage==Stage::R
 void Game::moveCrew(float dt){
     if(stage==Stage::Flight)return;
     if(recording!=Recording::Animal||stage==Stage::Report){fieldCrew(dt);return;}
-    for(int i=0;i<3;i++){
-        auto& a=crew[i];a.shot=std::max(0.f,a.shot-dt);
-        if(i==1&&stage>=Stage::Exposure)continue;
-        updatePatrol(*this,i,dt);
-    }
+    auto& partner=crew.front();
+    partner.shot=std::max(0.f,partner.shot-dt);
+    updatePatrol(*this,dt);
 }
 void Game::refreshCamera(const Input& in,const Prefs& prefs,float dt){
     float amount=prefs.steady?0:1;
     V base=pos+V{0,1.43f-duck*.55f+height,0};
     if(stage==Stage::Flight){
-        base=vehicle()+V{-.35f-1.13f*smooth(13.0f,14.8f,age),1.15f+.35f*smooth(13.7f,14.85f,age)+amount*.009f*std::sin(time*19),-.12f};
+        base=vehicle()+V{-.35f-1.13f*smooth(13.0f,14.8f,age),1.15f+.35f*smooth(13.7f,14.85f,age)+amount*.009f*std::sin(time*19),recording==Recording::Animal?-.38f:-.12f};
     }
     if(recording==Recording::Grey&&tether>0&&tetherActor==-1)base.y+=(prefs.steady?.13f:.52f)*std::sin(pi*clamp(tether/1.2f));
     base=base+forward(body.yaw)*.19f+right(yaw)*(amount*(.015f*std::sin(stepClock)*pace+.045f));
@@ -205,7 +212,14 @@ void Game::tick(const Input& in,const Prefs& prefs,float dt){
     if(in.light)torch=!torch;if(in.uv&&recording==Recording::Grey)uv=!uv;
     equipLower*=std::exp(-18*dt);
     if(recording==Recording::Range&&in.cycle)choose(selection+in.cycle);
-    if(recording!=Recording::Range&&(in.weapon>=0||in.cycle)){int next=in.weapon>=0&&recording!=Recording::Range?in.weapon:(slot+in.cycle+3)%3;if(next>=0&&next<3&&next!=slot){slot=next;ejectIn=-1;fireBuffer=0;reloadTime=0;reloadSeated=false;equipLower=1;shotDelay=0;emit(Sound::Cloth,camera,Bus::Body);}}
+    if(recording!=Recording::Range&&(in.weapon>=0||in.cycle)){
+        const int count=int(loadout.size());
+        const int next=in.weapon>=0?in.weapon:(slot+in.cycle%count+count)%count;
+        if(next>=0&&next<count&&next!=slot){
+            slot=next;ejectIn=-1;fireBuffer=0;reloadTime=0;reloadSeated=false;equipLower=1;shotDelay=0;
+            emit(Sound::Cloth,camera,Bus::Body);
+        }
+    }
     aim=mix(aim,in.aim?1:0,decay(26,dt));duck=mix(duck,in.crouch?1:0,decay(12,dt));
     viewKick*=std::exp(-12*dt);blast=std::max(0.f,blast-dt*3);grenadeTick(dt);
     if(ejectIn>=0){ejectIn-=dt;if(ejectIn<0){particles.eject(camera+right(yaw)*.17f+aimRay()*.44f+V{0,-.14f,0},right(yaw),ground(pos),false);emit(Sound::Latch,camera,Bus::Body,.46f);}}
@@ -214,9 +228,9 @@ void Game::tick(const Input& in,const Prefs& prefs,float dt){
     if(reloadTime>0){
         reloadTime=std::max(0.f,reloadTime-dt);
         float phase=1-reloadTime/reloadDuration;
-        if(!reloadSeated && phase>=(slot==0?.69f:.63f)){
+        if(!reloadSeated && phase>=(weapon()==Weapon::Pistol?.63f:.69f)){
             int n=std::min(handling().capacity-mag[slot],reserve[slot]);
-            mag[slot]+=n;reserve[slot]-=n;reloadSeated=true;if(weapon()==Weapon::Launcher)particles.eject(camera+right(yaw)*.15f+aimRay()*.44f+V{0,-.18f,0},right(yaw),ground(pos),true);emit(Sound::Seat,camera,Bus::Body,slot==0?.72f:.55f);
+            mag[slot]+=n;reserve[slot]-=n;reloadSeated=true;if(weapon()==Weapon::Launcher)particles.eject(camera+right(yaw)*.15f+aimRay()*.44f+V{0,-.18f,0},right(yaw),ground(pos),true);emit(Sound::Seat,camera,Bus::Body,weapon()==Weapon::Pistol?.55f:.72f);
         }
         if(reloadTime==0&&reloadEmpty)emit(Sound::Latch,camera,Bus::Body,.60f);
     }
@@ -262,7 +276,7 @@ void Game::tick(const Input& in,const Prefs& prefs,float dt){
         break;}
     case Stage::Recovery:if(pos.z>37.6f){enter(Stage::Examination);}break;
     case Stage::Examination:
-        if(len(flat(crew[1].pos-patient()))<1.25f&&playerNear){if(!patientSeen){patientSeen=true;say("MI_010");}exposure+=dt;if(exposure>4.6f)enter(Stage::Exposure);}break;
+        if(len(flat(crew.front().pos-patient()))<1.25f&&playerNear){if(!patientSeen){patientSeen=true;say("MI_010");}exposure+=dt;if(exposure>4.6f)enter(Stage::Exposure);}break;
     case Stage::Exposure:{
         if(age>1.45f)say("MI_012");
         if(age>2.3f){advanceHost(*this,dt);
