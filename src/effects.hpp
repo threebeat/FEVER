@@ -17,4 +17,3 @@ public:
 struct Barrier{Box box;Matter material;};
 const std::vector<Barrier>& audioBarriers();
 }
-

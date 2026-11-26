@@ -115,14 +115,16 @@ int run(HINSTANCE instance,const std::string& args){
     SetProcessDPIAware();CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
     WNDCLASSW wc{};wc.style=CS_OWNDC;wc.lpfnWndProc=windowProc;wc.hInstance=instance;wc.lpszClassName=L"FeverNativeWindow";wc.hCursor=LoadCursor(nullptr,IDC_ARROW);RegisterClassW(&wc);
     bool proof=args.find("--verify")!=std::string::npos;
-    int winW=proof?960:std::min(1440,GetSystemMetrics(SM_CXSCREEN)*9/10),winH=winW*9/16;winH=std::min(winH,GetSystemMetrics(SM_CYSCREEN)*85/100);
+    bool bench=args.find("--benchmark")!=std::string::npos;
+    int winW=bench?1920:proof?960:std::min(1440,GetSystemMetrics(SM_CXSCREEN)*9/10),winH=winW*9/16;if(!bench)winH=std::min(winH,GetSystemMetrics(SM_CYSCREEN)*85/100);
     RECT rect{0,0,winW,winH};AdjustWindowRect(&rect,WS_OVERLAPPEDWINDOW,FALSE);
     HWND window=CreateWindowW(wc.lpszClassName,L"FEVER",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,nullptr,instance,nullptr);
     if(!window)throw std::runtime_error("Cannot open the FEVER window");
     Game g(readScript("docs/DIALOGUE.md"));if(g.script.size()!=15)throw std::runtime_error("Missing FEVER recording script");
     if(!loadTuning("assets/shift.cfg",g.tuning))throw std::runtime_error("Invalid assets/shift.cfg");
     Mixer mixer;mixer.loadTakes("assets/voice",g.script);Renderer renderer;renderer.init(window,g,proof);
-    if(proof){screenshotProof(window,renderer,g);DestroyWindow(window);return 0;}
+    if(bench){renderer.benchmark(window,g,"FEVER-benchmark.csv");DestroyWindow(window);return 0;}
+    if(proof){screenshotProof(window,renderer,g);renderer.benchmark(window,g,"proof/timer-smoke.csv",2,2);DestroyWindow(window);return 0;}
     ShowWindow(window,SW_SHOW);RAWINPUTDEVICE raw{1,2,0,window};RegisterRawInputDevices(&raw,1,sizeof raw);
     Output audio(mixer);Saved save;Menu menu;Pad pad;bool usingPad=false;float elapsed=0,accum=0;Input pending{};
     LARGE_INTEGER prev,freq;QueryPerformanceFrequency(&freq);QueryPerformanceCounter(&prev);
@@ -167,7 +169,7 @@ int run(HINSTANCE instance,const std::string& args){
             }
         }
         if(keys.tap[VK_F5])loadTuning("assets/shift.cfg",g.tuning);
-        float aspect=float(bounds.right)/bounds.bottom;menu.build(g,save.prefs,save.cp>=0,aspect,elapsed,usingPad);
+        float aspect=float(bounds.right)/bounds.bottom;if(menu.page!=Page::Playing)menu.build(g,save.prefs,save.cp>=0,aspect,elapsed,usingPad);
         if(menu.page==Page::Playing&&keys.focused){
             if(keys.escape||(pad.pressed&XINPUT_GAMEPAD_START)){show(Page::Pause);pending={};accum=0;}
             else{
@@ -218,4 +220,3 @@ int WINAPI WinMain(HINSTANCE h,HINSTANCE,LPSTR args,int){
         std::ofstream("FEVER-error.txt")<<e.what()<<"\n";
         if(!args||std::string(args).find("--verify")==std::string::npos)MessageBoxA(nullptr,e.what(),"FEVER - startup",MB_OK|MB_ICONERROR);return 1;}
 }
-

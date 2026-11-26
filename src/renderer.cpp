@@ -4,6 +4,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cstring>
+#include <chrono>
 namespace fever {
 namespace {
 void check(HRESULT result,const char* which){
@@ -231,6 +232,43 @@ void Renderer::draw(HWND window,const Game& g,const Prefs& prefs,const Menu& men
     ctx->OMSetDepthStencilState(depthOff.Get(),0);ctx->OMSetBlendState(alpha.Get(),nullptr,~0u);ctx->IASetInputLayout(uiLayout.Get());UINT stride=sizeof(UIVertex),off=0;ctx->IASetVertexBuffers(0,1,uiVB.GetAddressOf(),&stride,&off);
     ID3D11ShaderResourceView* art[]={font.Get(),cover.Get()};ctx->PSSetShaderResources(5,2,art);ctx->VSSetShader(uiVS.Get(),nullptr,0);ctx->PSSetShader(uiPS.Get(),nullptr,0);ctx->Draw(UINT(menu.vertices.size()),0);
 }
+void Renderer::benchmark(HWND window,Game& game,const std::string& report,int warmup,int samples){
+    using Clock=std::chrono::steady_clock;
+    ComPtr<IDXGIDevice> gi;ComPtr<IDXGIAdapter> adapter;DXGI_ADAPTER_DESC desc{};
+    check(device.As(&gi),"DXGI device");check(gi->GetAdapter(&adapter),"GPU adapter");check(adapter->GetDesc(&desc),"GPU description");
+    char label[512]{};WideCharToMultiByte(CP_UTF8,0,desc.Description,-1,label,sizeof(label),nullptr,nullptr);
+    ComPtr<ID3D11Query> disjoint,start,finish;
+    auto make=[&](D3D11_QUERY type,ComPtr<ID3D11Query>& q){D3D11_QUERY_DESC d{type,0};check(device->CreateQuery(&d,&q),"GPU timer");};
+    make(D3D11_QUERY_TIMESTAMP_DISJOINT,disjoint);make(D3D11_QUERY_TIMESTAMP,start);make(D3D11_QUERY_TIMESTAMP,finish);
+    auto read=[&](ID3D11Query* query,void* value,UINT size){
+        auto deadline=Clock::now()+std::chrono::seconds(10);HRESULT hr;
+        while((hr=ctx->GetData(query,value,size,0))==S_FALSE){
+            if(Clock::now()>deadline)throw std::runtime_error("GPU timer timed out");Sleep(1);
+        }
+        check(hr,"GPU timer result");
+    };
+    std::ofstream csv(report);if(!csv)throw std::runtime_error("Cannot create hardware benchmark report");
+    csv<<"adapter,mode,width,height,scene_width,scene_height,frame,simulation_ms,submission_ms,gpu_ms\n";
+    Menu menu;menu.page=Page::Playing;
+    for(int style=0;style<2;style++){
+        game.restart(Stage::Kennels);game.pos={-.42f,0,20.35f};Prefs p;p.psx=style!=0;
+        for(int i=0;i<warmup+samples;i++){
+            Input input;input.dx=.006f*std::cos(i*.045f);input.aim=i%90>63;
+            input.fire=i%38==8;auto before=Clock::now();game.tick(input,p,1.f/90);game.events.clear();auto simulated=Clock::now();
+            menu.build(game,p,true,16.f/9,game.time,false);
+            ctx->Begin(disjoint.Get());ctx->End(start.Get());auto issue=Clock::now();
+            draw(window,game,p,menu,1.f/90);auto submitted=Clock::now();ctx->End(finish.Get());ctx->End(disjoint.Get());ctx->Flush();
+            D3D11_QUERY_DATA_TIMESTAMP_DISJOINT hz{};UINT64 t0=0,t1=0;
+            read(disjoint.Get(),&hz,sizeof(hz));read(start.Get(),&t0,sizeof(t0));read(finish.Get(),&t1,sizeof(t1));
+            if(i<warmup)continue;
+            csv<<std::quoted(label)<<','<<(p.psx?"PSX":"Photorealistic")<<','<<width<<','<<height<<','<<sw<<','<<sh<<','<<(i-warmup)<<','
+               <<std::chrono::duration<double,std::milli>(simulated-before).count()<<','<<std::chrono::duration<double,std::milli>(submitted-issue).count()<<',';
+            if(!hz.Disjoint&&hz.Frequency)csv<<1000.0*double(t1-t0)/hz.Frequency;
+            csv<<'\n';
+        }
+    }
+    if(!csv)throw std::runtime_error("Cannot finish hardware benchmark report");
+}
 void Renderer::writeFrame(const std::string& path){
     ComPtr<ID3D11Texture2D> t;check(swap->GetBuffer(0,IID_PPV_ARGS(&t)),"Read frame");D3D11_TEXTURE2D_DESC d{};t->GetDesc(&d);d.Usage=D3D11_USAGE_STAGING;d.BindFlags=0;d.CPUAccessFlags=D3D11_CPU_ACCESS_READ;d.MiscFlags=0;
     ComPtr<ID3D11Texture2D> dest;check(device->CreateTexture2D(&d,nullptr,&dest),"Readback");ctx->CopyResource(dest.Get(),t.Get());D3D11_MAPPED_SUBRESOURCE m;
@@ -240,4 +278,3 @@ void Renderer::writeFrame(const std::string& path){
     ctx->Unmap(dest.Get(),0);if(!f||hi-lo<35)throw std::runtime_error("Camera verification produced an empty frame");
 }
 }
-

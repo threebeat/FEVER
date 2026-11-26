@@ -26,4 +26,3 @@ if(BUILD_TESTING)
     add_test(NAME incident COMMAND incident_tests)
     set_tests_properties(incident PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
 endif()
-

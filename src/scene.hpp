@@ -15,4 +15,3 @@ MeshData readMesh(const std::string& path);
 std::vector<Instance> sceneInstances(const Game& g,bool shadows=false);
 MeshData effectsMesh(const Game& g);
 }
-

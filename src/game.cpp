@@ -258,4 +258,3 @@ void Game::tick(const Input& in,const Prefs& prefs,float dt){
     if(hp<=0){hp=0;enter(Stage::Lost);}
 }
 }
-

@@ -43,4 +43,3 @@ struct Game {
     static V desk(){return {4.3f,1.15f,48.5f};}
 };
 }
-

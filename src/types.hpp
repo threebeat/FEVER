@@ -68,4 +68,3 @@ inline const char* name(Speaker s){constexpr const char* names[]={"DISPATCH","CO
 inline Zone zone(V p){if(p.z<0)return Zone::Yard;if(p.z<11)return Zone::Intake;if(p.z<39)return Zone::Kennels;return Zone::Isolation;}
 inline float deviceTime(float elapsed){return 21*3600+13*60+4+elapsed;}
 }
-

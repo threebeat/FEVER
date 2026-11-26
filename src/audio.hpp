@@ -28,4 +28,3 @@ public:
 };
 MixState mixState(const Game& game,const Prefs& prefs,bool active);
 }
-

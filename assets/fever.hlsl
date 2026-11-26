@@ -143,4 +143,3 @@ float4 uiPS(UIOut i):SV_TARGET {
     if(i.mode>.5)return letterSheet.Sample(linearClamp,i.uv)*i.c;
     return i.c;
 }
-

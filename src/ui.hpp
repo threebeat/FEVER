@@ -18,4 +18,3 @@ struct Menu {
     void option(float x,float y,float w,const std::string& title,const std::string& value,Command cmd,bool enabled=true);
 };
 }
-

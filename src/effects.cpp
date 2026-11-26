@@ -29,4 +29,3 @@ const std::vector<Barrier>& audioBarriers(){
     return surfaces;
 }
 }
-

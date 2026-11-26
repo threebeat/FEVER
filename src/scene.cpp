@@ -283,4 +283,3 @@ MeshData effectsMesh(const Game& g){
     return std::move(b.m);
 }
 }
-

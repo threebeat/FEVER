@@ -112,4 +112,3 @@ void audio(){
 }
 }
 int main(){try{titleAndData();navigation();patrolAndIncident();cameraAndHandling();audio();std::cout<<"Relay Six native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
-

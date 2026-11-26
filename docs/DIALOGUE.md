@@ -9,17 +9,17 @@ The table is the game's cue sheet. The executable reads these rows directly. Kee
 | R6_002 | COLE | world | 3.2 | 1 | Road's under water. This is as close as they can put us. | Beside Reed in the cabin. Raise the voice just enough to carry. |
 | R6_003 | DISPATCH | radio | 3.5 | 1 | Relay Six lists one night custodian. Call me when you've got him. | Landing. The shift log is wrong. Dispatch believes it. |
 | R6_004 | COLE | world | 2.0 | 2 | I've got the door. | At the intake panel. Occupied with the latch. |
-| R6_005 | BELL | world | 2.8 | 1 | There's a time clock here. They punched out the dogs. | At the numbered cards inside intake. Quiet discovery. |
-| R6_006 | IVES | world | 2.6 | 1 | Somebody signed the stop orders. They kept the pumps running. | Passing the infusion log in the kennel aisle. Clinical concern. |
+| R6_005 | BELL | world | 2.8 | 1 | Cole. These kennel cards have times of death. | At the numbered cards inside intake. Quiet discovery. |
+| R6_006 | IVES | world | 2.6 | 1 | Stop order's signed. The pumps are still running. | Passing the infusion log in the kennel aisle. Clinical concern. |
 | R6_007 | BELL | world | 1.2 | 4 | On the left! | The moving kennel latch. Sudden, directional warning. |
 | R6_008 | COLE | world | 1.7 | 3 | It's pulling back. Let it. | After the appendage recoils behind the mesh. Speaking to Reed. |
 | R6_009 | IVES | world | 2.1 | 2 | There's a man on the floor. | Ives sees the patient through the isolation entrance. |
 | R6_010 | IVES | world | 2.8 | 2 | Sir? I'm a paramedic. Can you open your eyes? | At the patient's shoulder. Close, level, loud enough for him alone. |
 | R6_011 | BELL | world | 1.8 | 3 | Ives. Your sleeve. | Something has crossed from the patient to the medic. Disbelief. |
 | R6_012 | COLE | world | 1.6 | 4 | Back up, Reed. | Ives stands and turns. Short and involuntary. |
-| R6_013 | COLE | world | 3.0 | 2 | Use the wall set. Dispatch needs to hear this from you. | The room falls quiet. Exhausted. |
+| R6_013 | COLE | world | 3.0 | 2 | Wall set's got power. Try County. | The room falls quiet. Exhausted. |
 | R6_014 | REED | radio | 3.6 | 3 | County, Seventeen. One patient. One of ours down. Send another crew. | Reed uses the isolation-room radio. Deliberate, effortful report. |
-| R6_015 | DISPATCH | radio | 3.4 | 3 | Copy, Seventeen. Stay on this channel. Your shift is still open. | End of the first call. Leave a beat before the last sentence. |
+| R6_015 | DISPATCH | radio | 3.4 | 3 | Copy, Seventeen. Second crew is rolling. Keep the line open. | End of the first call. Leave a beat before the last sentence. |
 
 ## Delivering takes
 

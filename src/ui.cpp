@@ -110,4 +110,3 @@ void Menu::build(const Game& g,const Prefs& pref,bool saved,float aspect,float n
     if(page==Page::Title&&std::fmod(now,2.25f)<1.55f)quad(edge-8,669,7,7,red);
 }
 }
-

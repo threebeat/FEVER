@@ -11,4 +11,3 @@ struct Body {
     void update(V ground,float facing,float crouch,float elevation,bool seated,float dt);
 };
 }
-

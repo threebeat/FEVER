@@ -36,8 +36,8 @@ class Renderer {
 public:
     void init(HWND window,const Game& g,bool probe=false);
     void draw(HWND window,const Game& g,const Prefs& prefs,const Menu& menu,float dt);
+    void benchmark(HWND window,Game& game,const std::string& report,int warmup=32,int frames=128);
     void writeFrame(const std::string& path);
     void present(){swap->Present(1,0);}
 };
 }
-
