@@ -63,7 +63,16 @@ enum class Bus {World,Radio,Body};
 enum class Sound {Boot,Key,Step,Cloth,Door,Intercom,Hum,Gate,Lash,Round,Strike,Drop,Pulse,Host,Footfall,Rotors,Beep,Reload,Seat,Latch,Wind,Turn,Knock,Snow,Glass,Brass,Blast,Howl,Voice};
 enum class Speaker {Dispatch,Cole,Ives,Bell,Player};
 struct Event {Sound sound; V pos; Bus bus=Bus::World; float gain=1; Speaker speaker=Speaker::Player; std::string cue;};
-struct Input {float walk=0,strafe=0,dx=0,dy=0;bool aim=false,fire=false,sprint=false,crouch=false,interact=false,reload=false,light=false,jump=false,uv=false;int weapon=-1,cycle=0;};
+struct Input {float walk=0,strafe=0,dx=0,dy=0;bool aim=false,fire=false,firePressed=false,sprint=false,crouch=false,interact=false,reload=false,light=false,jump=false,uv=false;int weapon=-1,cycle=0;};
+// Sticks describe angular velocity. Mouse deltas already describe an angle.
+inline V radialStick(float x,float y,float dead){
+    V input{x,0,y};float length=len(input);if(length<=dead)return {};
+    return norm(input)*clamp((length-dead)/(1-dead));
+}
+inline V stickTurn(V input,float seconds,float sensitivity){
+    float curve=.27f+.73f*dot(input,input);
+    return {input.x*curve*3.8f*seconds*sensitivity,0,input.z*curve*2.75f*seconds*sensitivity};
+}
 struct Prefs {bool psx=false,steady=false,grain=true,lens=true,nightMix=false;float volume=.78f,look=1,padLook=1,deadzone=.13f;};
 struct Tuning {float wait=7.4f,resume=4.1f,catchup=5,run=4.85f,inspect=3.2f,hostSpeed=1.55f,reach=6.8f,spring=7,fov=105,warp=.061f,ring=.85f;};
 enum class Task {Advance,Inspect,Wait,CatchUp,Defend,Treat,Open,Observe,Stagger};

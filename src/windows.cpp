@@ -45,11 +45,11 @@ void lockMouse(HWND w,bool yes){
 }
 struct Pad {
     using Poll=DWORD(WINAPI*)(DWORD,XINPUT_STATE*);HMODULE lib=nullptr;Poll read=nullptr;
-    XINPUT_STATE state{};WORD before=0,pressed=0;bool live=false;
+    XINPUT_STATE state{};WORD before=0,pressed=0;bool live=false,trigger=false,triggerPressed=false;
     Pad(){for(const wchar_t* n:{L"xinput1_4.dll",L"xinput9_1_0.dll",L"xinput1_3.dll"}){lib=LoadLibraryW(n);if(lib){read=(Poll)GetProcAddress(lib,"XInputGetState");if(read)break;FreeLibrary(lib);lib=nullptr;}}}
     ~Pad(){if(lib)FreeLibrary(lib);}
-    void poll(){before=state.Gamepad.wButtons;state={};live=read&&read(0,&state)==ERROR_SUCCESS;pressed=state.Gamepad.wButtons&~before;}
-    static V stick(SHORT x,SHORT y,float dead){V a={x/32768.f,0,y/32768.f};float l=len(a);if(l<dead)return {};return norm(a)*clamp((l-dead)/(1-dead));}
+    void poll(){before=state.Gamepad.wButtons;state={};live=read&&read(0,&state)==ERROR_SUCCESS;pressed=state.Gamepad.wButtons&~before;bool held=trigger;trigger=live&&state.Gamepad.bRightTrigger>(held?32:45);triggerPressed=trigger&&!held;}
+    static V stick(SHORT x,SHORT y,float dead){return radialStick(x/32768.f,y/32768.f,dead);}
 };
 struct Saved {
     Prefs prefs;int cp=-1,call=0,beat=0;fs::path path;
@@ -196,11 +196,11 @@ int run(HINSTANCE instance,const std::string& args){
                 auto l=Pad::stick(controller.sThumbLX,controller.sThumbLY,.17f),r=Pad::stick(controller.sThumbRX,controller.sThumbRY,save.prefs.deadzone);
                 Input input;input.walk=clamp(float(keys.down['W']-keys.down['S'])+l.z,-1,1);input.strafe=clamp(float(keys.down['D']-keys.down['A'])+l.x,-1,1);
                 input.aim=keys.right||controller.bLeftTrigger>42;
-                float sensitivity=1-g.aim*(g.weapon()==Weapon::Sniper?.69f:.39f),curve=.27f+.73f*dot(r,r);
-                pending.dx+=(keys.rawX*.0021f*save.prefs.look+r.x*curve*dt*3.8f*save.prefs.padLook)*sensitivity;pending.dy+=(-keys.rawY*.0021f*save.prefs.look+r.z*curve*dt*2.75f*save.prefs.padLook)*sensitivity;
+                float sensitivity=1-g.aim*(g.weapon()==Weapon::Sniper?.69f:.39f);V turn=stickTurn(r,dt,save.prefs.padLook);
+                pending.dx+=(keys.rawX*.0021f*save.prefs.look+turn.x)*sensitivity;pending.dy+=(-keys.rawY*.0021f*save.prefs.look+turn.z)*sensitivity;
                 if(pad.pressed&XINPUT_GAMEPAD_LEFT_THUMB)runningPad=true;if(l.z<.25f||input.aim||controller.bRightTrigger>45||!pad.live)runningPad=false;
                 input.sprint=keys.down[VK_SHIFT]||runningPad;input.crouch=keys.down[VK_CONTROL]||(controller.wButtons&XINPUT_GAMEPAD_B);
-                input.fire=keys.mouse||controller.bRightTrigger>45;pending.fire|=keys.click;pending.light|=keys.tap['F']||(pad.pressed&XINPUT_GAMEPAD_DPAD_UP);
+                input.fire=keys.mouse||pad.trigger;pending.firePressed|=keys.click||pad.triggerPressed;pending.light|=keys.tap['F']||(pad.pressed&XINPUT_GAMEPAD_DPAD_UP);
                 pending.uv|=keys.tap['V']||(pad.pressed&XINPUT_GAMEPAD_DPAD_LEFT);pending.jump|=keys.tap[VK_SPACE]||(pad.pressed&XINPUT_GAMEPAD_A);pending.interact|=keys.tap['E']||(pad.pressed&XINPUT_GAMEPAD_X);
                 pending.reload|=keys.tap['R']||((pad.pressed&XINPUT_GAMEPAD_X)&&g.prompt(true).empty());
                 pending.cycle+=keys.wheel>0?-1:keys.wheel<0?1:0;if(pad.pressed&XINPUT_GAMEPAD_Y)pending.cycle++;
@@ -208,7 +208,7 @@ int run(HINSTANCE instance,const std::string& args){
                 accum+=dt;constexpr float step=1.f/90;int steps=std::min(9,int(accum/step));
                 if(steps){input.dx=pending.dx/steps;input.dy=pending.dy/steps;
                     for(int j=0;j<steps;j++){
-                        Input frame=input;if(!j){frame.uv=pending.uv;frame.light=pending.light;frame.jump=pending.jump;frame.interact=pending.interact;frame.reload=pending.reload;frame.cycle=pending.cycle;frame.weapon=pending.weapon;frame.fire|=pending.fire;}
+                        Input frame=input;if(!j){frame.uv=pending.uv;frame.light=pending.light;frame.jump=pending.jump;frame.interact=pending.interact;frame.reload=pending.reload;frame.cycle=pending.cycle;frame.weapon=pending.weapon;frame.firePressed=pending.firePressed;frame.fire|=frame.firePressed;}
                         Stage old=g.stage;int oldBeat=g.beat;g.tick(frame,save.prefs,step);accum-=step;
                         bool checkpoint=old!=g.stage&&(g.stage==Stage::Apron||g.stage==Stage::Kennels||g.stage==Stage::Recovery||g.stage==Stage::Report);
                         bool progress=oldBeat!=g.beat&&((g.recording==Recording::House&&g.beat<=5)||(g.recording==Recording::Grey&&g.beat<=2));

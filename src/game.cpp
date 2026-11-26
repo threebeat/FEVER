@@ -241,7 +241,7 @@ void Game::tick(const Input& in,const Prefs& prefs,float dt){
     idleTime=busy?0:idleTime+dt;
     sprintWeight=mix(sprintWeight,in.sprint&&in.walk>.18f&&pace>.65f&&!in.aim&&!in.fire&&reloadTime==0?1.f:0.f,decay(9,dt));
     refreshCamera(in,prefs,dt);moveCrew(dt);
-    fireBuffer=std::max(0.f,fireBuffer-dt);if(in.fire&&!wasFiring)fireBuffer=.12f;
+    fireBuffer=std::max(0.f,fireBuffer-dt);if(in.firePressed||(in.fire&&!wasFiring))fireBuffer=.12f;
     if((fireBuffer>0||in.fire&&handling().automatic)&&shotDelay<=0&&reloadTime<=0){sprintWeight=std::min(sprintWeight,.19f);shoot();fireBuffer=0;}
     wasFiring=in.fire;
     const bool playerNear=len(flat(pos-patient()))<7.8f;

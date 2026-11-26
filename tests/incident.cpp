@@ -109,6 +109,21 @@ void handlingRange(){
     g.choose(6);g.pitch=-.25f;g.tick(grip,{},dt);REQUIRE(g.projectile);wait(g,1.8f);REQUIRE(!g.projectile);
     g.choose(4);g.tick({}, {},dt);V d=norm(platesAt[1]-g.camera);g.yaw=std::atan2(d.x,d.z);g.pitch=std::asin(d.y);g.shoot();REQUIRE(g.plateHits>=1);
 }
+void inputTiming(){
+    REQUIRE(len(radialStick(.06f,.04f,.13f))==0);V diagonal=radialStick(.71f,.71f,.13f);
+    REQUIRE(std::abs(diagonal.x-diagonal.z)<.0001f&&std::abs(len(diagonal)-1)<.001f);
+    V outer=stickTurn({1,0,0},1,1);
+    for(int rate:{30,60,144}){V full{};for(int i=0;i<rate;i++)full=full+stickTurn({1,0,0},1.f/rate,1);REQUIRE(len(outer-full)<.0001f);}
+    REQUIRE(stickTurn(radialStick(.30f,0,.13f),1,1).x<outer.x*.085f);
+    Game g;g.start(Recording::Range,Stage::Apron);g.choose(4);
+    Input press;press.fire=true;press.firePressed=true;g.tick(press,{},dt);REQUIRE(g.shots==1);
+    wait(g,.10f);g.tick(press,{},dt);wait(g,.12f);REQUIRE(g.shots==2);
+    g.choose(1);g.tick(press,{},dt);REQUIRE(g.shots==3);
+    wait(g,.09f);g.tick(press,{},dt);wait(g,.90f);REQUIRE(g.shots==3);
+    Input ads;ads.aim=true;for(int j=0;j<9;j++)g.tick(ads,{},dt);REQUIRE(g.aim>.9f);wait(g,.11f);REQUIRE(g.aim<.1f);
+    Input run;run.walk=1;run.sprint=true;for(int j=0;j<60;j++)g.tick(run,{},dt);Input low;low.crouch=true;g.tick(low,{},dt);REQUIRE(g.slide>.35f);
+    g.tick(ads,{},dt);REQUIRE(g.slide==0);
+}
 void audio(){
     auto rightSource=acousticPath({0,1,15},0,Zone::Kennels,{2,1,16},Bus::World,1);REQUIRE(rightSource.right>rightSource.left);
     auto outside=acousticPath({0,1,-1},0,Zone::Yard,{0,1,2},Bus::World,1),closed=acousticPath({0,1,-1},0,Zone::Yard,{0,1,2},Bus::World,0);REQUIRE(closed.cutoff<outside.cutoff&&closed.left<outside.left);
@@ -153,4 +168,4 @@ void audio(){
 
 }
 }
-int main(){try{titleAndData();navigation();patrolAndIncident();cameraAndHandling();nightCalls();handlingRange();audio();std::cout<<"Three recording routes, both Grey endings, seven weapons and native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
+int main(){try{titleAndData();navigation();patrolAndIncident();cameraAndHandling();nightCalls();handlingRange();inputTiming();audio();std::cout<<"Three recording routes, both Grey endings, seven weapons and native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
