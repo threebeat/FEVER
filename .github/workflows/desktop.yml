@@ -1,0 +1,35 @@
+name: Desktop verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, native-relay-six]
+    paths: ['src/**', 'assets/**', 'tests/**', 'docs/DIALOGUE.md', 'CMakeLists.txt']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -A x64
+      - run: cmake --build build --config Release --parallel
+      - run: ctest --test-dir build -C Release --output-on-failure
+      - name: Exercise both render paths on Direct3D WARP
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath .\build\Release\FEVER.exe -ArgumentList '--verify' -Wait -PassThru
+          if ($p.ExitCode -ne 0) {
+            Get-Content .\build\Release\FEVER-error.txt -ErrorAction SilentlyContinue
+            throw "Direct3D verification exited with $($p.ExitCode)"
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FEVER-render-proof
+          path: build/Release/proof/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FEVER-Windows-x64
+          path: |
+            build/Release/FEVER.exe
+            build/Release/assets/
+            build/Release/docs/
