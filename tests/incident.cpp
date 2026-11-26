@@ -85,6 +85,8 @@ void nightCalls(){
     for(V p:{V{16,0,16.8f},V{16,0,15},V{12.3f,0,15},V{5.9f,0,15},V{.3f,0,15},V{0,0,19.3f}})walk(g,p,true);
     pressUse(g);REQUIRE(g.beat==5);walk(g,{0,0,29},true);
     for(int i=0;i<12&&g.beat==5;i++){V d=norm(g.contacts[3].p+V{0,1,0}-g.camera);g.yaw=std::atan2(d.x,d.z);g.pitch=std::asin(d.y);g.shoot();wait(g,.23f);}
+    if(g.beat!=6){auto& c=g.contacts[3];V line=c.p+V{0,1,0}-g.camera;
+        std::cerr<<"Cellar "<<int(g.stage)<<" officer "<<g.hp<<" rounds "<<g.mag[0]<<" witch "<<c.hp<<" awake "<<c.awake<<" pos "<<c.p.x<<","<<c.p.y<<","<<c.p.z<<" camera "<<g.camera.x<<","<<g.camera.y<<","<<g.camera.z<<" distance "<<len(line)<<" obstruction "<<g.wallDistance(g.camera,norm(line))<<"\n";}
     REQUIRE(g.beat==6);walk(g,{1,0,37.5f},true);pressUse(g);REQUIRE(g.stage==Stage::Filed);
     g.start(Recording::Grey);wait(g,15.4f);
     walk(g,{0,0,14.2f},true);pressUse(g);REQUIRE(g.beat==2&&!g.dragged);

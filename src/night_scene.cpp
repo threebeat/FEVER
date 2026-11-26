@@ -22,6 +22,13 @@ void car(Builder& b){
     for(float x:{-.6f,-.40f,-.2f}){hoop(b,{x,.913f,.372f},{1,0,0},{0,1,0},.059f,.0032f,trim,Cold);
         for(int i=0;i<11;i++){V d={std::cos(i*.46f-.78f),std::sin(i*.46f-.78f),0};b.pipe(V{x,.913f,.368f}+d*.047f,V{x,.913f,.368f}+d*.055f,.002f,.002f,light,Cold,4);}
         b.pipe({x,.913f,.365f},{x+.032f,.944f,.365f},.003f,.003f,amber,Warm,5);}
+    for(float x:{-.68f,-.04f,.58f}){b.box({x,.91f,.393f},{.13f,.095f,.029f},dark,Polymer);
+        for(int j=0;j<5;j++)b.box({x,.876f+j*.014f,.368f},{.122f,.004f,.033f},rock,Polymer);}
+    for(int j=0;j<3;j++)b.pipe({.055f+.077f*j,.754f,.357f},{.055f+.077f*j,.754f,.333f},.024f,.024f,iron,Polymer,10);
+    V cable={-.07f,.817f,.395f};
+    for(int j=1;j<=31;j++){float t=j/31.f;V v={-.07f+.12f*t+.013f*std::sin(t*79),.817f-.33f*std::sin(t*pi),.395f-.19f*t+.012f*std::cos(t*79)};b.pipe(cable,v,.005f,.005f,dark,Polymer,4);cable=v;}
+    b.box({-.085f,.823f,.365f},{.072f,.102f,.033f},dark,Polymer);
+    for(int j=0;j<4;j++)panel(b,-.085f,.810f+j*.011f,.344f,.044f,.0028f,rock,Metal);
     for(float x:{-.43f,.43f}){b.box({x,.51f,-.36f},{.49f,.15f,.60f},iron,Fabric);b.box({x,.79f,-.69f},{.51f,.48f,.13f},dark,Fabric);b.box({x,1.12f,-.69f},{.30f,.22f,.12f},iron,Fabric);}
     b.box({.27f,.96f,.337f},{.43f,.30f,.055f},dark,Polymer);panel(b,.27f,.96f,.302f,.38f,.245f,{.12f,.23f,.18f},DarkGlass);
     for(int j=0;j<6;j++)panel(b,.195f+(j%3)*.013f,1.04f-j*.023f,.279f,.17f+(j%3)*.027f,.003f,light,Cold);
@@ -36,6 +43,18 @@ void hands(Builder& b){
     for(int j=0;j<2;j++){int s=j?1:-1;V hand=onWheel(j?.66f:2.65f),wrist=hand+V{s*.032f,-.045f,-.056f},elbow={-.35f+s*.29f,.64f,-.28f};
         b.pipe(elbow,lerp(elbow,wrist,.65f),.071f,.064f,{.135f,.156f,.175f},Fabric,10);b.pipe(lerp(elbow,wrist,.65f),wrist,.064f,.045f,{.18f,.20f,.22f},Fabric,10);
         b.pipe(wrist,hand,.036f,.043f,{.53f,.37f,.27f},Skin,9);for(int k=0;k<4;k++){V p=hand+V{s*(k*.013f-.028f),.022f,.008f};b.pipe(p,p+V{s*.012f,-.032f,.02f},.009f,.007f,{.55f,.395f,.28f},Skin,6);}}
+}
+void parkedCar(Builder& b){
+    b.box({0,.40f,0},{1.75f,.39f,4.01f},rock,Enamel);
+    b.box({0,.63f,0},{1.77f,.24f,3.96f},iron,Enamel);
+    for(float s:{-1.f,1.f}){b.box({s*.79f,.87f,-.20f},{.08f,.29f,1.96f},rock,Enamel);
+        for(float z:{-1.25f,1.26f}){b.pipe({s*.77f,.34f,z},{s*.93f,.34f,z},.30f,.30f,dark,Polymer,12);b.pipe({s*.923f,.34f,z},{s*.94f,.34f,z},.16f,.15f,iron,Metal,10);}
+        for(float z:{-.65f,.26f})b.box({s*.745f,1.11f,z},{.029f,.38f,.76f},iron,DarkGlass);
+        b.pipe({s*.77f,.83f,.88f},{s*.64f,1.33f,.41f},.038f,.032f,rock,Metal);panel(b,s*.55f,.62f,-2.006f,.35f,.117f,brick,Red);}
+    b.box({0,1.36f,-.20f},{1.44f,.083f,1.44f},rock,Enamel);
+    b.face({-.73f,.83f,.91f},{.73f,.83f,.91f},{.64f,1.32f,.44f},{-.64f,1.32f,.44f},iron,DarkGlass);
+    b.face({.74f,.83f,-1.25f},{-.74f,.83f,-1.25f},{-.64f,1.32f,-.88f},{.64f,1.32f,-.88f},iron,DarkGlass);
+    panel(b,0,.54f,-2.009f,.35f,.14f,trim,Enamel);
 }
 void lampPost(Builder& b,float x,float z){float s=x>0?-1:1;b.pipe({x,0,z},{x,4.90f,z},.10f,.045f,iron);b.pipe({x,4.88f,z},{x+s*1.19f,5.13f,z},.055f,.029f,iron);
     b.box({x+s*1.28f,5.15f,z},{.65f,.16f,.31f},iron);b.box({x+s*1.28f,5.05f,z},{.49f,.032f,.26f},amber,Warm);}
@@ -57,7 +76,7 @@ void street(Builder& b,bool rear){
     if(rear){for(int i=0;i<7;i++){float x=(i-3)*4.2f,h=4.f+i%3*2;b.box({x,h/2,84},{4.0f,h,5},i%2?brick:rock,Plaster);
         for(int n=0;n<3;n++)panel(b,x+(n-1)*1.13f,2.2f,81.48f,.69f,1.12f,i==3?amber:iron,i==3?Warm:DarkGlass);}
         b.box({1,.71f,66},{1.85f,.11f,.54f},timber,Wood);for(float x:{.02f,1.98f})b.pipe({x,0,66.32f},{x,2.6f,66.32f},.047f,.047f,iron);
-        b.box({1,2.65f,66},{2.39f,.12f,1.1f},iron);b.sign({.02f,1.8f,66.24f},{1.96f,0,0},.49f,14);}}
+        b.box({1,2.65f,66},{2.39f,.12f,1.1f},iron);b.sign({.02f,1.8f,66.24f},{1.96f,0,0},.49f,10);}}
 void roof(Builder& b,V p,float w,float d,float h){V a=p+V{-w/2,0,-d/2},c=p+V{w/2,0,-d/2},v={0,0,d},r=p+V{0,h,-d/2};
     b.face(a,a+v,r+v,r,iron,Metal);b.face(r,r+v,c+v,c,rock,Metal);b.face(a,r,c,c,timber,Wood);b.face(c+v,r+v,a+v,a+v,timber,Wood);}
 void stairs(Builder& b,V base,V axis,float run,float rise,float w){
@@ -104,7 +123,7 @@ void porch(Builder& b){
         for(int k:{-1,1})panel(b,x+k*1.55f,1.74f,z-2.54f,.8f,1.15f,k==1&&j%2?amber:iron,k==1&&j%2?Warm:DarkGlass);}
     roof(b,{0,3.4f,5},10.65f,10.7f,1.98f);b.box({0,2.64f,-1.5f},{7.2f,.13f,3.20f},timber,Wood);
     for(float x:{-3.3f,3.3f})b.box({x,1.36f,-2.84f},{.18f,2.72f,.18f},trim,Wood);b.box({0,.016f,-1.53f},{7.3f,.05f,3.1f},timber,Wood);
-    b.sign({1.67f,1.43f,-.13f},{1.4f,0,0},.36f,15);}
+    b.sign({1.67f,1.43f,-.13f},{1.4f,0,0},.36f,14);}
 void tree(Builder& b,V p,int seed){
     float h=4.7f+std::fmod(std::abs(p.x*1.73f+p.z),5.7f),r=.90f+h*.095f;b.pipe(p,p+V{.04f,h,0},.16f,.041f,timber,Wood,6);
     for(int tier=0;tier<5;tier++)for(int j=0;j<7;j++){float a=j*(2*pi/7)+tier*.49f+seed*1.41f,span=r*(1-tier*.13f),y=h*(.17f+tier*.143f);
@@ -118,7 +137,8 @@ void outdoors(Builder& b){b.box({9,-.145f,19},{105,.26f,145},snow,Stone);
         for(float z:{10.f,19.f})for(int s:{-1,1})b.pipe({s*1.36f,h,z},{s*4.12f,h,z},.135f,.135f,timber,Wood);}
     roof(b,{0,3.16f,14.5f},9.15f,10.35f,2.04f);bed(b,{-2.3f,0,15.3f},1.51f,2.66f);table(b,{2,0,16.4f},1.5f,.85f,.83f);
     b.box({1.91f,1.04f,16.4f},{.50f,.27f,.31f},iron);panel(b,1.91f,1.08f,16.22f,.28f,.065f,light,Cold);b.pipe({2.06f,1.16f,16.48f},{2.13f,1.65f,16.49f},.012f,.007f,iron);
-    b.sign({1.58f,1.63f,9.82f},{1.86f,0,0},.48f,16);
+    b.sign({1.58f,1.63f,9.82f},{1.86f,0,0},.48f,15);
+    b.pipe({2.8f,0,28},{2.8f,1.54f,28},.070f,.063f,timber,Wood);b.sign({2.12f,1.09f,27.93f},{1.41f,0,0},.40f,16);
     for(float x:{-4.45f,4.45f})for(float z:{50.1f,59.3f})b.pipe({x,0,z},{x,5.16f,z},.13f,.10f,iron);
     for(float x:{-4.43f,4.43f}){b.pipe({x,.08f,50.2f},{x,4.8f,59.3f},.065f,.065f,iron);b.pipe({x,4.8f,50.2f},{x,.08f,59.3f},.065f,.065f,iron);}
     stairs(b,{-4,0,51},{1,0,0},8,1.75f,1.72f);b.box({3.85f,1.69f,52.92f},{1.56f,.12f,2.34f},timber,Wood);
@@ -137,7 +157,7 @@ void range(Builder& b){b.box({0,-.08f,13},{14,.15f,49},rock,Aggregate);for(float
 }
 void buildLocations(std::map<std::string,MeshData>& out){
     auto make=[&](std::string id,auto fn){Builder b;fn(b);out.emplace(id,std::move(b.m));};
-    make("cruiser",car);make("steering",hands);make("wiper",[](Builder& b){b.pipe({-.72f,.96f,.98f},{-.07f,1.20f,.86f},.011f,.009f,dark,Polymer);});
+    make("cruiser",car);make("parked-car",parkedCar);make("steering",hands);make("wiper",[](Builder& b){b.pipe({-.72f,.96f,.98f},{-.07f,1.20f,.86f},.011f,.009f,dark,Polymer);});
     make("lake-front",[](Builder& b){street(b,false);});make("lake-street",[](Builder& b){street(b,true);});make("alder-street",porch);
     for(auto& r:houseRooms)make(std::string("la-")+r.name,[&](Builder& b){houseRoom(b,r);});
     make("la-stairs",[](Builder& b){stairs(b,{5,0,15},{1,0,0},6,3.2f,2.65f);stairs(b,{0,0,20},{0,0,1},7,-3,2.65f);});
@@ -168,11 +188,16 @@ void locationInstances(const Game& g,std::vector<Instance>& out,bool shadows){
     auto add=[&](const std::string& id,V pos={},float yaw=0,int key=0){out.push_back({id,at(pos,yaw),key});};
     if(g.recording!=Recording::Range){bool driving=g.stage==Stage::Flight;V carPos=driving?g.vehicle():V{-2.35f,0,-9.65f};
         if(len(carPos-g.camera)<55){add("cruiser",carPos);if(driving&&!shadows){
-            add("steering",carPos);Pose w=at(carPos);float a=(g.recording==Recording::Grey?.08f:.15f)*std::sin(g.time*2.4f);
+            Pose steer=at(carPos);float turn=.055f*std::sin(g.time*1.18f)+.10f*(smooth(4.1f,6.1f,g.age)-smooth(7.4f,8.6f,g.age));
+            steer.x={std::cos(turn),std::sin(turn),0};steer.y={-std::sin(turn),std::cos(turn),0};V hub={-.36f,.85f,.24f};
+            steer.p=carPos+hub-steer.x*hub.x-steer.y*hub.y-steer.z*hub.z;out.push_back({"steering",steer});Pose w=at(carPos);float a=(g.recording==Recording::Grey?.08f:.15f)*std::sin(g.time*2.4f);
             w.x={std::cos(a),std::sin(a),0};w.y={-std::sin(a),std::cos(a),0};
             V pivot={-.72f,.96f,.98f};w.p=carPos+pivot-w.x*pivot.x-w.y*pivot.y-w.z*pivot.z;out.push_back({"wiper",w});}}}
     switch(g.recording){
-    case Recording::Animal:if(g.camera.z<17)add("lake-front");if(g.camera.z>31)add("lake-street");break;
+    case Recording::Animal:{
+        if(g.camera.z<17)add("lake-front");if(g.camera.z>31)add("lake-street");
+        for(int i=0;i<8;i++){float z=i<4?-37.f+i*8:55.f+(i-4)*7;if(std::abs(g.camera.z-z)<43)add("parked-car",{i%2?7.6f:-7.2f,0,z},i%2?3.07f:.06f);}
+        if(g.stage==Stage::Flight&&g.age<8.7f)add("parked-car",{2.15f,0,-14.f-3.72f*g.age},pi);break;}
     case Recording::House:{
         if(g.camera.z<20)add("alder-street");for(auto& r:houseRooms)if(len(g.camera-r.center)<34)add(std::string("la-")+r.name);
         if(g.camera.z>0)add("la-stairs");auto door=[&](float z,float open){float angle=open*1.53f;add("door-leaf",{-1.2f+1.2f*std::cos(angle),0,z+1.2f*std::sin(angle)},-angle);};door(0,g.door);door(20,g.beat>=5?1.f:0.f);
@@ -182,7 +207,7 @@ void locationInstances(const Game& g,std::vector<Instance>& out,bool shadows){
         p.y={0,std::cos(a),std::sin(a)};p.z={0,-std::sin(a),std::cos(a)};out.push_back({"plate",p});}break;}
     if(g.stage==Stage::Flight)return;
     int crew=g.recording==Recording::Grey?2:g.recording==Recording::House?1:0;
-    for(int i=0;i<crew;i++){const auto& a=g.crew[i];auto p=at(a.pos,a.yaw);p.morph=.5f+.46f*a.pace*std::sin(a.stride);p.action=smooth(0,.11f,a.shot);out.push_back({i?"operator":"officer",p,80+i});}
+    for(int i=0;i<crew;i++){const auto& a=g.crew[i];auto p=at(a.pos,a.yaw);p.morph=.5f+.46f*a.pace*std::sin(a.stride);p.action=smooth(0,.11f,a.shot);p.reaction=clamp(a.stun);if(g.tetherActor==i)p.p.y+=.93f*std::sin(pi*clamp(g.tether/1.35f));out.push_back({i?"operator":"officer",p,80+i});}
     for(size_t i=0;i<g.contacts.size();i++){const auto& c=g.contacts[i];if(c.kind==4||len(c.p-g.camera)>61||(c.kind==3||c.kind==5)&&(!c.awake||c.hp<=0)||(c.kind==5&&g.phaseOut>0))continue;
         const char* id=c.kind==0?"infected":c.kind==1?"hound":c.kind==2?"golem":c.kind==3?"witch":g.aggro<.38f?"grey-watch":"grey";
         if(c.hp<=0)id=c.kind==1?"sleeping-dog":"patient";
@@ -193,7 +218,8 @@ void locationEffects(const Game& g,Builder& b){
     if(g.recording==Recording::House&&!g.cellarKey&&g.beat<5){b.pipe(keyAt,keyAt+V{.15f,0,.04f},.019f,.015f,brass,Metal,7);hoop(b,keyAt,{1,0,0},{0,0,1},.045f,.011f,brass,Metal,8);}
     if(g.tether>0&&((g.recording==Recording::Grey&&g.uv)||g.recording==Recording::House)){
         bool alien=g.recording==Recording::Grey;V a=alien?g.contacts[0].p+V{0,1.7f,0}:g.contacts[0].origin;
-        V prev=a;for(int i=1;i<=14;i++){float t=i/14.f;V q=lerp(a,g.lashTarget,t)+V{std::sin(9*t+g.time*6)*.18f,std::sin(t*pi)*.59f,0};b.pipe(prev,q,.057f*(1.1f-t),.054f*(1.1f-t),alien?V{.52f,.43f,.95f}:brick,alien?Cold:Hide,7);prev=q;}}
+        V end=g.lashTarget;if(alien&&g.tetherActor>=0)end=g.crew[g.tetherActor].pos+V{0,1.1f+.93f*std::sin(pi*clamp(g.tether/1.35f)),0};
+        V prev=a;for(int i=1;i<=14;i++){float t=i/14.f;V q=lerp(a,end,t)+V{std::sin(9*t+g.time*6)*.18f,std::sin(t*pi)*.59f,0};b.pipe(prev,q,.057f*(1.1f-t),.054f*(1.1f-t),alien?V{.52f,.43f,.95f}:brick,alien?Cold:Hide,7);prev=q;}}
     if(g.recording==Recording::Grey){V x=right(g.camYaw)*.018f,y{0,.021f,0};for(int i=0;i<74;i++){
         float seed=float(i*31%71),h=std::fmod(41+std::fmod(i*.7531f,4.5f)-std::fmod(g.time*(.50f+.009f*(i%9)),4.5f),4.5f);
         V p={g.camera.x-5+std::fmod(seed*7.47f+std::sin(g.time*.43f+i)*.79f,10.f),g.camera.y-1.6f+h,g.camera.z-5+std::fmod(seed*13.78f,12.f)};b.face(p-x,p-y,p+x,p+y,snow,Fabric);}}
@@ -203,7 +229,7 @@ void locationEffects(const Game& g,Builder& b){
 std::vector<Lamp> callLights(const Game& g){
     std::vector<Lamp> l;auto add=[&](V p,V c,float r){l.push_back({p,c,r});};
     if(g.recording==Recording::Animal){l=lamps();for(float z:{-36.f,-20.f,-7.f,53.f,65.f,76.f})add({z>0?-7.f:6.f,4.3f,z},amber,12);add({-4,1,61},{.15f,.32f,.89f},8);}
-    if(g.recording==Recording::House){add({-3.8f,1.15f,4.4f},light*(.66f+.2f*std::sin(g.time*37)),5);add({-4.2f,1.4f,15},light,5.8f);
+    if(g.recording==Recording::House){add({3.88f,1.26f,3.0f},light*(.66f+.2f*std::sin(g.time*37)),5);add({-3.45f,1.4f,18.23f},light,5.8f);
         add({1.5f,2.4f,16},amber*(.64f+.19f*std::sin(g.time*11)),4.8f);for(auto& r:houseRooms)if(r.center.y!=0)add(r.center+V{1,2.2f,1},r.center.y>0?amber:brick,6.4f);
         for(float z:{-36.f,-20.f,-5.f})add({-4.3f,3.4f,z},amber,8);}
     if(g.recording==Recording::Grey){add({1,2.5f,13},amber,7.5f);add({-3,2,9},light,5);add({3.5f,6,58},amber,6);if(g.beat==4)add(flareAt,{1,.16f,.05f},15);}

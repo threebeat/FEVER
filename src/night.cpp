@@ -89,7 +89,7 @@ bool Game::passable(V p)const{
 }
 void Game::fieldCrew(float dt){
     int count=recording==Recording::House?1:recording==Recording::Range?0:2;
-    for(int j=0;j<count;j++){int i=recording==Recording::Animal&&j==1?2:j;auto& a=crew[i];a.shot=std::max(0.f,a.shot-dt);a.brain.fireTimer-=dt;
+    for(int j=0;j<count;j++){int i=recording==Recording::Animal&&j==1?2:j;auto& a=crew[i];a.stun=std::max(0.f,a.stun-dt);if(a.stun>0){a.pace=0;a.shot=0;continue;}a.shot=std::max(0.f,a.shot-dt);a.brain.fireTimer-=dt;
         V goal=pos+V{i?1.1f:-1.15f,0,-1.5f};
         if(recording==Recording::House){const V lead[]={{-.7f,0,-1},{0,0,6.4f},{0,0,14},{3.8f,0,15},{0,0,19},{0,-3,31},{0,-3,37}};goal=lead[std::min(6,beat)];}
         else if(recording==Recording::Grey&&pos.z<47&&std::abs(pos.x)<5)goal={i?.88f:-1.3f,0,pos.z+3.8f-i*1.6f};
@@ -113,7 +113,8 @@ bool Game::fieldHit(V o,V d,float& distance,float damage){
         float h=c.kind==1?.54f:c.kind==4?.26f:c.kind==5?1.50f:1.04f,r=c.kind==5?1.05f:c.kind==1?.54f:.61f;
         float t=std::min(raySphere(o,d,c.p+V{0,h,0},r),raySphere(o,d,c.p+V{0,h*1.52f,0},r*.62f));if(t<distance){distance=t;best=i;}}
     if(best<0)return false;auto& c=contacts[best];c.flinch=1;particles.burst(o+d*distance,d*-1,Matter::Fluid,11);
-    if(c.kind==5){aggro=clamp(aggro+.23f);phaseOut=2.1f;watched=0;c.clock=3;emit(Sound::Howl,c.p,Bus::World,1.5f);}
+    if(c.kind==5){int tolerance=aggro>.82f?3:aggro>.51f?2:1;aggro=clamp(aggro+.23f);watched=0;emit(Sound::Howl,c.p,Bus::World,1.5f);
+        if(++greyHits>=tolerance){greyHits=0;phaseOut=2.1f;c.clock=3;}}
     else if(c.kind==3&&beat<5){c.awake=false;c.clock=6;emit(Sound::Howl,c.p);}else c.hp-=damage;return true;
 }
 void Game::grenadeTick(float dt){
@@ -157,7 +158,7 @@ void Game::fieldTick(const Input& in,float dt){
         if(beat==1&&pos.z>8.6f){next(2);say("LA_006");}
         if(beat==2){if(near(pos,{0,0,15},5.4f))contacts[0].awake=true;if(contacts[0].hp<=0||pos.x>4.4f||pos.z>18){next(3);say("LA_007");}}
         if(beat==3&&in.interact&&near(pos,keyAt,2.7f)){next(4);cellarKey=true;emit(Sound::Latch,keyAt);say("LA_008");}
-        if(beat==4&&in.interact&&near(pos,{0,0,19.5f},2.4f)){next(5);emit(Sound::Door,{0,1,20});say("LA_009");}
+        if(beat==4&&in.interact&&near(pos,{0,0,19.5f},2.4f)){next(5);auto& witch=contacts[3];witch.p=witch.origin;witch.awake=false;witch.clock=1;emit(Sound::Door,{0,1,20});say("LA_009");}
         auto& witch=contacts[3];if(beat>=5&&pos.z>27){if(!witch.awake){witch.p=witch.origin;witch.awake=true;}if(beat==5&&witch.hp<=0){next(6);say("LA_010");}}
         else if(beat>0&&beat<5){witch.clock-=dt;if(witch.clock<=0){witch.awake=!witch.awake;witch.clock=witch.awake?3.1f:10;witch.p=pos+forward(yaw)*5+right(yaw)*1.1f;witch.p.y=ground(witch.p);if(!passable(witch.p))witch.p={.6f,0,8};}}
         if(beat==6&&in.interact&&near(pos,callerAt,3)){say("LA_011");enter(Stage::Filed);return;}}
@@ -166,13 +167,19 @@ void Game::fieldTick(const Input& in,float dt){
         if(beat==1&&in.interact&&near(pos,{0,0,15.7f},3.1f)){next(2);say("VT_005");emit(Sound::Intercom,pos);}
         if(fieldTime>17){if(!c.awake){c.awake=true;emit(Sound::Howl,c.p);say("VT_006");}
             aggro=clamp(aggro+dt*(dragged?.013f:.0032f));c.clock=std::max(0.f,c.clock-dt);
+            if(tether<=0)tetherActor=-1;
             if(previous>0&&phaseOut<=0){c.p=pos+forward(yaw+1.47f+.8f*std::sin(time))*(13+std::fmod(time,7.f));c.p.x=clamp(c.p.x,-19,50);c.p.z=clamp(c.p.z,-4,65);c.p.y=0;}
             V line=c.p+V{0,1.4f,0}-camera;float dist=len(line);
             if(aggro<.38f||phaseOut>0){
                 watched=clamp(watched+dt*(torch&&dot(norm(line),aimRay())>.90f?1.1f:-.7f),0,3);
                 if(phaseOut<=0&&(watched>1.15f||dist<5.3f||dist>34)){phaseOut=1.55f;watched=0;}}
-            else{if(dist>2.2f)c.p=lerp(c.p,pos,std::min(1.f,dt*(3.45f+aggro*2.5f)/dist));
-                if(dist<4.7f&&c.clock<=0){tether=1.2f;lashTarget=pos+V{0,1.15f,0};hp-=9;damageFlash=.65f;c.clock=5.7f;emit(Sound::Lash,c.p);
+            else{V prey=pos;
+                if(!dragged&&beat==2&&fieldTime>42&&std::fmod(fieldTime,20.f)<7.f&&pos.z<49){
+                    int nearest=len(flat(crew[0].pos-c.p))<len(flat(crew[1].pos-c.p))?0:1;
+                    if(len(flat(crew[nearest].pos-c.p))<dist){prey=crew[nearest].pos;
+                        if(len(flat(prey-c.p))<3.15f&&c.clock<=0){tetherActor=nearest;tether=1.35f;c.clock=5.8f;crew[nearest].stun=2.45f;emit(Sound::Lash,prey);}}}
+                if(phaseOut==0&&len(prey-c.p)>2.2f)c.p=lerp(c.p,prey,std::min(1.f,dt*(3.45f+aggro*2.5f)/std::max(1.f,len(prey-c.p))));
+                if(dist<4.7f&&c.clock<=0){tetherActor=-1;tether=1.2f;lashTarget=pos+V{0,1.15f,0};hp-=9;damageFlash=.65f;c.clock=5.7f;emit(Sound::Lash,c.p);
                     if(beat==2&&aggro>.70f&&!dragged&&pos.z<49){dragged=true;next(3);say("VT_007");}}}}
         if(beat==3&&beatAge<3.8f){pos=lerp(pos,{39,0,49},decay(1.1f,dt));impact=.72f;}
         if(beat==3&&in.interact&&near(pos,flareAt,3.3f)){next(4);aggro=1;emit(Sound::Lash,flareAt);say("VT_008");}

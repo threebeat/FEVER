@@ -12,7 +12,7 @@ struct Game {
     Recording recording=Recording::Animal;std::array<Weapon,3> loadout{Weapon::Auto,Weapon::Pistol,Weapon::Knife};
     Weapon weapon()const{return loadout[slot];}const WeaponSpec& handling()const{return spec(weapon());}
     std::vector<Box> animalSolids;std::vector<Contact> contacts;
-    int beat=0,selection=0,plateHits=0;std::array<float,6> plates{};
+    int beat=0,selection=0,plateHits=0,tetherActor=-1,greyHits=0;std::array<float,6> plates{};
     float beatAge=0,fieldTime=0,aggro=0,phaseOut=0,watched=0,tether=0;
     float viewKick=0,fireBuffer=0,ejectIn=-1,slide=0,runGrace=0,blast=0;
     bool cellarKey=false,uv=false,dragged=false,projectile=false;

@@ -43,7 +43,7 @@ Game::Game(std::vector<Cue> lines):script(std::move(lines)){
 }
 void Game::restart(Stage checkpoint){start(recording,checkpoint);}
 void Game::start(Recording r,Stage checkpoint,int savedBeat){
-    recording=r;beat=selection=plateHits=0;beatAge=fieldTime=aggro=phaseOut=watched=tether=viewKick=fireBuffer=slide=runGrace=blast=0;
+    recording=r;beat=selection=plateHits=greyHits=0;tetherActor=-1;beatAge=fieldTime=aggro=phaseOut=watched=tether=viewKick=fireBuffer=slide=runGrace=blast=0;
     plates={};ejectIn=-1;projectile=dragged=uv=cellarKey=false;buildCall();
     loadout={Weapon::Auto,Weapon::Pistol,Weapon::Knife};
     if(r==Recording::House)loadout={Weapon::Pistol,Weapon::Semi,Weapon::Knife};
@@ -182,6 +182,7 @@ void Game::refreshCamera(const Input& in,const Prefs& prefs,float dt){
     if(stage==Stage::Flight){
         base=vehicle()+V{-.35f-1.13f*smooth(13.0f,14.8f,age),1.15f+.35f*smooth(13.7f,14.85f,age)+amount*.009f*std::sin(time*19),-.12f};
     }
+    if(recording==Recording::Grey&&tether>0&&tetherActor==-1)base.y+=(prefs.steady?.13f:.52f)*std::sin(pi*clamp(tether/1.2f));
     base=base+forward(body.yaw)*.19f+right(yaw)*(amount*(.015f*std::sin(stepClock)*pace+.045f));
     base.y+=amount*(pace*.024f*std::sin(stepClock*2)+.004f*std::sin(time*2.2f));
     float frequency=prefs.steady?18:tuning.spring;
@@ -191,7 +192,7 @@ void Game::refreshCamera(const Input& in,const Prefs& prefs,float dt){
     mount[5].follow(bank,4.1f,dt);
     camera={mount[0].x,mount[1].x,mount[2].x};camYaw=yaw+clamp(mount[3].x-yaw,-.12f,.12f)*amount;
     camPitch=pitch+viewKick+clamp(mount[4].x-pitch,-.105f,.105f)*amount;camRoll=mount[5].x;
-    handYaw.follow(yaw,9,dt);handPitch.follow(pitch,9,dt);armsYaw=yaw+(handYaw.x-yaw)*(.34f*(1-aim));armsPitch=pitch+(handPitch.x-pitch)*(.34f*(1-aim));
+    handYaw.follow(yaw,9,dt);handPitch.follow(pitch,9,dt);armsYaw=yaw+clamp(wrap(handYaw.x-yaw)*.34f,-.17f,.17f)*(1-aim);armsPitch=pitch+clamp((handPitch.x-pitch)*.34f,-.13f,.13f)*(1-aim);
 }
 void Game::tick(const Input& in,const Prefs& prefs,float dt){
     if(!(dt>0))return;
