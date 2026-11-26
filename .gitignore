@@ -1,0 +1,10 @@
+/build*/
+/proof/
+/FEVER.exe
+/FEVER-error.txt
+*.o
+*.obj
+*.lib
+*.pdb
+__pycache__/
+
