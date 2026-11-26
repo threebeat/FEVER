@@ -275,7 +275,7 @@ function firingHand(m,pose,boltGrip=null) {
   const knuckle=between([.048+.010*clear,-.025+.013*clear,.024-.012*press],[.047,-.027,.054],hold);
   const fingertip=between([.035+.017*clear,-.012+.026*clear,-.045+.022*press-.009*clear],[.013,-.047,.040],hold);
   const index=[[[.054,-.044,.070],.020,.019,p.glove],[knuckle,.016,.016,p.glove]];
-  if(hold>.005)index.push([between(knuckle,[.021,-.031,.031],hold),.013,.013,p.glove]);
+  if(hold>.005||(pose.stableMesh&&boltGrip))index.push([between(between(knuckle,fingertip,.48),[.021,-.031,.031],hold),.013,.013,p.glove]);
   index.push([fingertip,.012,.011,p.gloveFold]);finger(m,index,6);
   finger(m,[[[.049,-.053,.105],.023,.023,p.glove],[[.012,-.026,.100],.024,.023,p.glove],[[-.029,-.035,.072],.014,.015,p.gloveFold]],6);
   m.tri([.096,-.083,.112],[.071,-.063,.086],[.067,-.072,.095],p.stitch,8);
@@ -923,7 +923,19 @@ export function buildGun(mesh,weapon,options={}) {
   if(weapons[id].instrument){fieldDevice(m,id,options.signal||0);firingHand(m,pose);if(!options.helmet)flashlightHand(layer,pose);return;}
   pose.stableMesh=options.stableMesh;
   fieldRecorder(m,id);
-  const shift=weaponBody(m,id,pose);slingWebbing(layer,pose);
+  const shift=weaponBody(m,id,pose);
+  const tube=(a,b,r1,r2,col,mt,n)=>limb(m,[[a,r1,r1,col],[b,r2,r2,col]],n,mt,true);
+  if(options.variantModel==='sniper'){
+    for(const z of [-.42,-.273]){box(m,0,.114,z,.050,.072,.035,paint.blued,5);tube([0,.15,z-.015],[0,.15,z+.012],.039,.039,paint.blued,5,12);}
+    tube([0,.151,-.50],[0,.151,-.405],.042,.028,paint.blued,5,14);
+    tube([0,.151,-.406],[0,.151,-.230],.027,.027,paint.blued,5,14);
+    tube([0,.151,-.232],[0,.151,-.175],.027,.042,paint.blued,5,14);
+    tube([0,.151,-.176],[0,.151,-.171],.037,.037,[.10,.18,.21],6,14);
+  }else if(options.variantModel==='semi'){
+    tube([0,.057,-.521],[0,.057,-.636],.019,.014,paint.blued,5,12);
+    for(const z of [-.41,-.36,-.31])tube([0,.05,z],[0,.05,z+.014],.036,.036,paint.blued,5,12);
+  }
+  slingWebbing(layer,pose);
   if(id==='knife'||id==='machete'){
     knifeHand(m,pose,id==='machete');
     if(!options.helmet)flashlightHand(layer,pose);

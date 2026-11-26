@@ -173,12 +173,12 @@ function rifle(m,pose){
   for(let i=0;i<5;i++){const z=.028+dz+i*.003;box(m,0,.079,z,.028,.002,.001,p.steel,5);}
  }
  const round=rifleFeed(pose);
- if(pose.exchanging&&round.visible)cartridge(m,round.base,[.003,-.003,-.066],false);
- if(pose.exchanging)for(let i=0;i<round.spares;i++){
+ if(!pose.stableMesh&&pose.exchanging&&round.visible)cartridge(m,round.base,[.003,-.003,-.066],false);
+ if(!pose.stableMesh&&pose.exchanging)for(let i=0;i<round.spares;i++){
   const base=plus(round.hand,[-.014-.009*i,.003+.002*i,.005+.005*i]);
   cartridge(m,base,[-.006-.004*i,-.008,-.061],false);
  }
- if(!pose.reload&&pose.boltCycle>.30&&pose.boltCycle<.57){
+ if(!pose.stableMesh&&!pose.reload&&pose.boltCycle>.30&&pose.boltCycle<.57){
   const t=(pose.boltCycle-.30)/.27;
   cartridge(m,[.035+.17*t,.070+.15*t-.12*t*t,-.068+.048*t],[.048*t,-.034*t,-.045*(1-t)],false,true);
  }

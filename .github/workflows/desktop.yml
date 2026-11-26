@@ -1,9 +1,11 @@
 name: Desktop verification
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main, native-relay-six]
-    paths: ['src/**', 'assets/**', 'tests/**', 'docs/DIALOGUE.md', 'CMakeLists.txt']
+    paths: ['src/**', 'assets/**', 'tests/**', 'docs/DIALOGUE.md', 'tools/**', '.github/workflows/desktop.yml', 'CMakeLists.txt']
 permissions:
   contents: read
 jobs:
@@ -11,11 +13,15 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+      - run: python -m pip install Pillow
+      - run: cmake -S . -B build -A x64 -DFEVER_RECOOK_ART=ON "-DPython3_EXECUTABLE=$((Get-Command python).Source)"
+      - id: compile
+        run: cmake --build build --config Release --parallel
       - run: python tools/audit-assets.py
-      - run: cmake -S . -B build -A x64
-      - run: cmake --build build --config Release --parallel
       - run: ctest --test-dir build -C Release --output-on-failure
       - name: Exercise both render paths on Direct3D WARP
+        id: render
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         shell: pwsh
         run: |
           $p = Start-Process -FilePath .\build\Release\FEVER.exe -ArgumentList '--verify' -Wait -PassThru
@@ -23,7 +29,11 @@ jobs:
             Get-Content .\build\Release\FEVER-error.txt -ErrorAction SilentlyContinue
             throw "Direct3D verification exited with $($p.ExitCode)"
           }
+      - name: Assemble recording contact sheet
+        if: ${{ !cancelled() && steps.render.outcome == 'success' }}
+        run: python tools/recording-stills.py build/Release/proof
       - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.render.outcome == 'success' }}
         with:
           name: FEVER-render-proof
           path: build/Release/proof/*
@@ -34,3 +44,58 @@ jobs:
             build/Release/FEVER.exe
             build/Release/assets/
             build/Release/docs/
+
+  release:
+    needs: windows
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: FEVER-Windows-x64
+          path: portable
+      - uses: actions/checkout@v4
+        with:
+          path: source
+      - uses: actions/download-artifact@v4
+        with:
+          name: FEVER-render-proof
+          path: stills
+      - name: Publish the verified portable game
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          cd portable
+          zip -q -r ../FEVER-Windows-x64.zip FEVER.exe assets docs
+          cd ..
+          tag="recordings-${BUILD_SHA:0:10}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" FEVER-Windows-x64.zip stills/FEVER-recordings.jpg --clobber
+          else
+            gh release create "$tag" FEVER-Windows-x64.zip stills/FEVER-recordings.jpg --target "$BUILD_SHA" --latest --title "FEVER · Night recordings" --notes "After Hours, The Open Door, The Grey and the county firing range. Extract the ZIP and open FEVER.exe."
+          fi
+      - name: Refresh the existing download and cooked art in the source checkout
+        working-directory: source
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$BUILD_SHA" ]; then
+            echo "A newer build owns the main download."
+            exit 0
+          fi
+          cp ../FEVER-Windows-x64.zip downloads/FEVER-Windows-x64.zip
+          cp ../stills/FEVER-recordings.jpg docs/media/night-recordings.jpg
+          cp ../portable/assets/plaques.jpg assets/
+          for mesh in hunting semi sniper launcher grey grey-watch witch golem; do
+            cp "../portable/assets/meshes/$mesh.fvm" "../portable/assets/meshes/$mesh-low.fvm" assets/meshes/
+          done
+          git add downloads/FEVER-Windows-x64.zip docs/media/night-recordings.jpg assets/plaques.jpg assets/meshes
+          if ! git diff --cached --quiet; then
+            git -c user.name=github-actions[bot] -c user.email=41898282+github-actions[bot]@users.noreply.github.com commit -m "Publish verified Windows game and cooked recording assets"
+            git push origin HEAD:refs/heads/main
+          fi

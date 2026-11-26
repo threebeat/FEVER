@@ -1,40 +1,10 @@
-#include "scene.hpp"
+#include "geometry.hpp"
+#include "night.hpp"
 #include <fstream>
 #include <stdexcept>
 namespace fever {
 namespace {
 const V cement={.49f,.51f,.47f},blue={.25f,.37f,.36f},steel={.35f,.39f,.39f},iron={.16f,.18f,.17f},bone={.72f,.68f,.57f},rust={.43f,.28f,.18f},ink={.07f,.08f,.075f};
-struct Builder {
-    MeshData m;
-    void face(V a,V b,V c,V d,V color,int mat,float u0=0,float v0=0,float u1=1,float v1=1){
-        V n=norm(cross(b-a,c-a));uint32_t k=uint32_t(m.vertices.size());
-        m.vertices.insert(m.vertices.end(),{{a,n,color,float(mat),u0,v1,{}},{b,n,color,float(mat),u1,v1,{}},{c,n,color,float(mat),u1,v0,{}},{d,n,color,float(mat),u0,v0,{}}});
-        m.indices.insert(m.indices.end(),{k,k+1,k+2,k,k+2,k+3});
-    }
-    void box(V p,V size,V color,int mat=Metal){
-        V a=p-size*.5f,b=p+size*.5f;
-        face({a.x,a.y,a.z},{a.x,a.y,b.z},{a.x,b.y,b.z},{a.x,b.y,a.z},color,mat);
-        face({b.x,a.y,b.z},{b.x,a.y,a.z},{b.x,b.y,a.z},{b.x,b.y,b.z},color,mat);
-        face({a.x,a.y,b.z},{b.x,a.y,b.z},{b.x,b.y,b.z},{a.x,b.y,b.z},color,mat);
-        face({b.x,a.y,a.z},{a.x,a.y,a.z},{a.x,b.y,a.z},{b.x,b.y,a.z},color,mat);
-        face({a.x,b.y,b.z},{b.x,b.y,b.z},{b.x,b.y,a.z},{a.x,b.y,a.z},color,mat);
-        face({a.x,a.y,a.z},{b.x,a.y,a.z},{b.x,a.y,b.z},{a.x,a.y,b.z},color,mat);
-    }
-    void pipe(V a,V b,float r,float end,V color,int mat=Metal,int n=8){
-        V dir=norm(b-a);V side=norm(cross(dir,std::abs(dir.y)>.83f?V{1,0,0}:V{0,1,0})),up=cross(dir,side);
-        for(int i=0;i<n;i++){float t=i*2*pi/n,s=(i+1)*2*pi/n;
-            V k=side*std::cos(t)+up*std::sin(t),l=side*std::cos(s)+up*std::sin(s);
-            face(a+k*r,a+l*r,b+l*end,b+k*end,color,mat);}
-    }
-    void sign(V at,V across,float h,int which){
-        float s=(which%2)*.5f,t=(which/2)*.25f;
-        V v={0,h,0};face(at,at+across,at+across+v,at+v,{1,1,1},Sign,s+.001f,t+.002f,s+.499f,t+.248f);
-    }
-    void pool(V p,float rx,float rz,int seed){
-        int n=18;for(int i=0;i<n;i++){auto pt=[&](int k){float a=k*2*pi/n;float s=.84f+.12f*std::sin(3*a+seed)+.08f*std::cos(7*a);
-            return p+V{rx*s*std::cos(a),0,rz*s*std::sin(a)};};face(p,pt(i+1),pt(i),p,{.27f,.063f,.045f},Blood);}
-    }
-};
 void fluorescent(Builder& b,float x,float y,float z,int kind){
     b.box({x,y+.08f,z},{.46f,.13f,1.72f},iron);
     for(float k:{-.103f,.103f})b.box({x+k,y-.018f,z},{.056f,.056f,1.52f},kind==Warm?V{1,.71f,.38f}:V{.78f,1,.93f},kind);
@@ -91,7 +61,7 @@ std::vector<Lamp> lamps(){return {
 std::map<std::string,MeshData> buildWorld(const Game& g){
     Builder yard,intake,kennelA,kennelB,iso;
     auto section=[&](float z)->Builder&{if(z<.03f)return yard;if(z<11.02f)return intake;if(z<25)return kennelA;if(z<39.02f)return kennelB;return iso;};
-    for(auto v:g.solids){
+    for(auto v:g.animalSolids){
         V size=v.high-v.low,p=(v.high+v.low)*.5f;if(size.y<3)continue;
         auto& b=section(p.z);b.box(p,size,cement,Plaster);
         if(p.z>=0){b.box({p.x,.57f,p.z},{size.x+.035f,1.05f,size.z+.035f},blue,Enamel);
@@ -110,11 +80,6 @@ std::map<std::string,MeshData> buildWorld(const Game& g){
     yard.box({1.68f,1.28f,-.13f},{.24f,.38f,.16f},ink);
     yard.box({1.68f,1.35f,-.227f},{.075f,.032f,.01f},{.28f,.85f,.52f},Cold);
     yard.box({0,2.88f,-.10f},{3.5f,.23f,.35f},steel);
-    for(int i=0;i<32;i++){
-        float x=(i%2?1:-1)*(12+(i%6)*3.3f),z=(-18+(i*7)%39);
-        float h=3.2f+i%5;yard.pipe({x,0,z},{x,h,z},.24f,.09f,ink,Wood);
-        yard.pipe({x,.8f,z},{x,h+.85f,z},1.9f+.09f*(i%7),.02f,{.06f,.10f,.08f},Fabric,8);
-    }
     auto room=[&](Builder& b,float left,float rightEdge,float z0,float z1){
         b.box({(left+rightEdge)*.5f,-.075f,(z0+z1)*.5f},{rightEdge-left,.14f,z1-z0},cement,Aggregate);
         b.box({(left+rightEdge)*.5f,3.58f,(z0+z1)*.5f},{rightEdge-left,.24f,z1-z0},steel,Plaster);
@@ -173,7 +138,7 @@ std::map<std::string,MeshData> buildWorld(const Game& g){
     for(int i=0;i<9;i++)door.box({0,.23f+i*.24f,-.08f},{2.96f,.014f,.017f},iron);
     Builder grid;grid.box({0,2.0f,0},{4.01f,.09f,.08f},iron);
     for(int i=0;i<22;i++)grid.box({-1.97f+i*.188f,1.06f,0},{.023f,1.89f,.024f},steel);
-    return {{"yard",std::move(yard.m)},{"intake",std::move(intake.m)},{"kennel-a",std::move(kennelA.m)},{"kennel-b",std::move(kennelB.m)},{"isolation",std::move(iso.m)},{"intake-door",std::move(door.m)},{"gate",std::move(grid.m)}};
+    std::map<std::string,MeshData> all={{"yard",std::move(yard.m)},{"intake",std::move(intake.m)},{"kennel-a",std::move(kennelA.m)},{"kennel-b",std::move(kennelB.m)},{"isolation",std::move(iso.m)},{"intake-door",std::move(door.m)},{"gate",std::move(grid.m)}};buildLocations(all);return all;
 }
 MeshData readMesh(const std::string& path){
     std::ifstream f(path,std::ios::binary);char magic[4];uint32_t nv=0,ni=0;
@@ -196,16 +161,18 @@ MeshData readMesh(const std::string& path){
 std::vector<Instance> sceneInstances(const Game& g,bool shadows){
     std::vector<Instance> list;auto add=[&](std::string id,V p,float a=0,int key=0){list.push_back({std::move(id),pose(p,a),key});};
     float z=g.camera.z;
+    locationInstances(g,list,shadows);
+    if(g.recording==Recording::Animal){
     if(z<15)add("yard",{});if(z<26)add("intake",{});if(z>-15&&z<46)add("kennel-a",{});if(z>0)add("kennel-b",{});if(z>17)add("isolation",{});
     if(z<22)add("intake-door",{0,g.door*2.86f,0});
     float gate=g.stage>=Stage::Recovery?smooth(0,1.4f,g.stage==Stage::Recovery?g.age:2):0;
     if(z>5)add("gate",{0,gate*2.63f,32.4f});
     if(z>22)add("hardware",{0,0,45.6f});
-    if(g.time<26){add("aircraft",g.craft());add("rotor",g.craft(),g.time*25);}
+
     for(int i=0;i<3;i++){
         if(i==1&&g.stage>=Stage::Exposure)continue;auto& a=g.crew[i];
         std::string id=i==0?"officer":i==1?"medic":"operator";
-        if(g.stage==Stage::Flight && g.age<9.2f+i*.60f)id=g.age<6.1f+i*.48f?"bench-officer":"rope-officer";
+        if(g.stage==Stage::Flight)continue;
         auto p=pose(a.pos,a.yaw,.5f+.46f*a.pace*std::sin(a.stride));
         p.reaction=clamp(a.stun*2);
         if(g.stage==Stage::Examination&&i==1)p.action=smooth(1.55f,.8f,len(flat(a.pos-Game::patient())));
@@ -223,7 +190,8 @@ std::vector<Instance> sceneInstances(const Game& g,bool shadows){
         if(g.stage==Stage::Exposure){Pose p=pose(g.host,std::atan2(g.pos.x-g.host.x,g.pos.z-g.host.z),.5f+.45f*std::sin(g.time*7));
             p.kneel=1-smooth(.8f,2.5f,g.age);p.reaction=g.hostFlinch;list.push_back({g.age<1.5f?"medic":"infected",p,13});}
         if(g.stage>=Stage::Report&&g.stage!=Stage::Lost)add("medic-down",g.host,.9f,14);}
-    if(g.body.ready&&g.stage!=Stage::Lost){
+    }
+    if(g.body.ready&&g.stage!=Stage::Flight&&g.stage!=Stage::Lost){
         const auto& body=g.body;
         Pose coat=pose(body.pelvis,body.yaw);list.push_back({"reed-coat",coat});
         if(shadows)list.push_back({"reed-shoulders",coat});
@@ -240,31 +208,32 @@ std::vector<Instance> sceneInstances(const Game& g,bool shadows){
             auto boot=pose(f.ankle,body.yaw);boot.x=boot.x*side;list.push_back({"reed-boot",boot});
         }
     }
-    if(!shadows&&(g.stage!=Stage::Flight||g.age>10.9f)&&g.stage!=Stage::Lost){
-        Pose p;p.z=forward(g.armsYaw,g.armsPitch);p.x=right(g.armsYaw);p.y=norm(cross(p.z,p.x));
-        float phase=g.slot==2?1-clamp(g.shotDelay/.49f):g.reloadTime>0?1-clamp(g.reloadTime/g.reloadDuration):1;
+    if(!shadows&&g.stage!=Stage::Flight&&g.stage!=Stage::Lost){
+        Pose p=weaponPose(g);
+        float phase=g.slot==2?1-clamp(g.shotDelay/g.handling().delay):g.reloadTime>0?1-clamp(g.reloadTime/g.reloadDuration):1;
         float enter=smooth(.015f,.34f,phase),exchange=smooth(.37f,.71f,phase),leave=1-smooth(.73f,.99f,phase);
         p.action=enter*(1-exchange);p.reaction=exchange*leave;
         float reload=enter*leave;
-        p.p=g.camera+p.y*(-.012f-.024f*reload-.14f*g.equipLower+g.kick*.029f)+p.x*(.012f*std::sin(g.stepClock)*g.pace*(1-g.aim))+p.z*(-.034f*g.kick);
+        p.p=p.p-p.y*(.024f*reload);
+        if(g.reloadTime>0&&g.stress>.07f){
+            // The grip settles as the magazine seats. The simulation owns that single inventory event.
+            float weight=reload*g.stress*(1-smooth(.68f,.92f,phase));
+            p.p=p.p+p.x*(weight*(.010f*std::sin(g.time*16.3f)+.004f*std::sin(g.time*23.8f)))-p.y*(.013f*weight);
+            p.action=clamp(p.action+.032f*weight*std::sin(phase*15));}
         float downward=smooth(.70f,1.43f,-g.camPitch)*(1-g.aim);
         float quiet=1-smooth(0,.40f,g.pace);
         float breath=std::sin(g.time*(2.0f+.40f*g.stress))*(.0025f+.0025f*g.stress)*(1-.72f*g.aim);
         float fidget=g.idleTime>5?smooth(0,.8f,std::fmod(g.idleTime-5,9.2f))*(1-smooth(.9f,2.2f,std::fmod(g.idleTime-5,9.2f))):0;
         p.idle=fidget*(g.slot==0?.44f:g.slot==1?.28f:.33f);
-        p.bolt=g.slot<2?std::max(g.kick*g.kick,(g.mag[g.slot]==0||g.reloadTime>0&&g.reloadEmpty)?1-smooth(.78f,.95f,phase)*(g.reloadTime>0?1.f:0.f):0.f):0.f;
-        p.p=p.p+p.y*(breath*quiet-.12f*g.sprintWeight-.042f*downward)+p.x*(.18f*downward+.045f*g.sprintWeight);
-        float roll=.16f*g.sprintWeight+.044f*fidget+.018f*std::sin(g.time*1.13f)*quiet*(1-g.aim);
-        V oldX=p.x;p.x=p.x*std::cos(roll)+p.y*std::sin(roll);p.y=p.y*std::cos(roll)-oldX*std::sin(roll);
-        p.morph=g.aim;list.push_back({g.slot==0?"carbine":g.slot==1?"pistol":"knife",p});
+        p.bolt=g.handling().bolt&&g.shotDelay>0?std::sin(pi*clamp(1-g.shotDelay/g.handling().delay)):g.slot<2?std::max(g.kick*g.kick,(g.mag[g.slot]==0||g.reloadTime>0&&g.reloadEmpty)?1-smooth(.78f,.95f,phase)*(g.reloadTime>0?1.f:0.f):0.f):0.f;
+        p.p=p.p+p.y*(breath*quiet-.042f*downward)+p.x*(.18f*downward);
+        p.morph=g.aim;list.push_back({g.handling().mesh,p});
     }
     return list;
 }
 MeshData effectsMesh(const Game& g){
     Builder b;
-    if(g.stage==Stage::Flight&&g.age>5.6f){
-        V c=g.craft();b.pipe(c+V{0,.6f,1.15f},{c.x,.05f,c.z+1.18f},.021f,.018f,bone,Wood,8);
-    }
+    locationEffects(g,b);
     if(g.stage==Stage::Lash&&g.lashAmount>.001f){
         V last=g.dog();for(int i=1;i<=20;i++){float t=i/20.f;V next=g.lashPoint(t);
             b.pipe(last,next,mix(.16f,.025f,(i-1)/20.f),mix(.16f,.025f,t),i%4?V{.39f,.16f,.13f}:bone,Hide,9);last=next;}
@@ -273,7 +242,9 @@ MeshData effectsMesh(const Game& g){
         for(int i=0;i<9;i++){auto at=[&](float t){V p=lerp(a,dest,t*smooth(0,1,g.age));p.y+=std::sin(t*pi)*.52f;return p;};b.pipe(at(i/9.f),at((i+1)/9.f),.06f,.042f,rust,Hide);}}
     V cameraSide=right(g.camYaw),cameraUp=norm(cross(forward(g.camYaw,g.camPitch),cameraSide));
     for(const auto& a:g.particles.all())if(a.life>0){
+        if(a.kind==ParticleKind::Casing||a.kind==ParticleKind::Shell){float spin=(a.total-a.life)*23;V e={std::cos(spin)*a.radius*2,std::sin(spin)*a.radius*1.7f,a.radius};b.pipe(a.p-e,a.p+e,a.radius,a.radius,{.83f,.63f,.24f},Metal,6);continue;}
         float r=a.radius*smooth(0,.21f,a.life/a.total);V x=cameraSide*r,y=cameraUp*r;
+        if(a.kind==ParticleKind::Flame||a.kind==ParticleKind::Smoke){bool fire=a.kind==ParticleKind::Flame;float k=a.life/a.total;b.face(a.p-x,a.p-y,a.p+x,a.p+y,fire?V{1,.5f+.47f*k,.13f+.43f*k}:V{.20f,.20f,.19f},fire?Warm:Fabric);continue;}
         bool spark=a.kind==ParticleKind::Spark;if(spark)y=a.v*.018f+cameraUp*r;
         V c=spark?V{1,.58f,.23f}:a.kind==ParticleKind::Droplet?V{.32f,.046f,.025f}:V{.34f,.32f,.28f};
         b.face(a.p-x,a.p-y,a.p+x,a.p+y,c,spark?Warm:a.kind==ParticleKind::Droplet?Blood:Aggregate);}

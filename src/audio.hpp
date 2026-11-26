@@ -3,10 +3,10 @@
 #include <map>
 namespace fever {
 struct Spatial {float left,right,cutoff,send;};
-Spatial acousticPath(V listener,float yaw,Zone room,V source,Bus bus,float door);
+Spatial acousticPath(V listener,float yaw,Zone room,V source,Bus bus,float door,Recording recording=Recording::Animal);
 struct MixState {
-    V listener{},crew[3]{};float yaw=0,door=1,pace=0,turn=0,stress=0,impact=0,recoverySeconds=.85f,rotor=0,volume=.78f;
-    Zone room=Zone::Yard;bool night=false,active=false;
+    V listener{},crew[3]{};float yaw=0,door=1,pace=0,turn=0,stress=0,impact=0,recoverySeconds=.85f,engine=0,volume=.78f;
+    Recording recording=Recording::Animal;Zone room=Zone::Yard;bool night=false,active=false;
 };
 class Mixer {
     static constexpr int rate=48000;

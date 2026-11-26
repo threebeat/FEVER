@@ -3,8 +3,25 @@ project(FEVER VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
-add_library(incident STATIC src/materials.cpp src/body.cpp src/effects.cpp src/behavior.cpp src/game.cpp src/scene.cpp src/audio.cpp src/ui.cpp)
+add_library(incident STATIC src/night.cpp src/night_scene.cpp src/materials.cpp src/body.cpp src/effects.cpp src/behavior.cpp src/game.cpp src/scene.cpp src/audio.cpp src/ui.cpp)
 target_include_directories(incident PUBLIC src)
+find_program(NODE_EXECUTABLE NAMES node)
+find_package(Python3 COMPONENTS Interpreter)
+file(GLOB_RECURSE FEVER_ART_SOURCES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tools/art/*.js")
+option(FEVER_RECOOK_ART "Regenerate the editable patrol meshes and wall signs" OFF)
+if(FEVER_RECOOK_ART OR NOT EXISTS "${PROJECT_SOURCE_DIR}/assets/meshes/grey.fvm")
+    if(NOT NODE_EXECUTABLE OR NOT Python3_Interpreter_FOUND)
+        message(FATAL_ERROR "Install Node.js and Python with Pillow to cook the night recordings.")
+    endif()
+    add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/night-art.stamp"
+        COMMAND "${NODE_EXECUTABLE}" tools/import-night.mjs
+        COMMAND "${Python3_EXECUTABLE}" tools/night-signs.py
+        COMMAND ${CMAKE_COMMAND} -E touch "${PROJECT_BINARY_DIR}/night-art.stamp"
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        DEPENDS tools/import-night.mjs tools/fvm.mjs tools/night-signs.py ${FEVER_ART_SOURCES})
+    add_custom_target(night_art DEPENDS "${PROJECT_BINARY_DIR}/night-art.stamp")
+    add_dependencies(incident night_art)
+endif()
 if(WIN32)
     add_executable(FEVER WIN32 src/windows.cpp src/renderer.cpp)
     target_link_libraries(FEVER PRIVATE incident d3d11 dxgi d3dcompiler windowscodecs ole32 uuid user32 winmm gdi32)

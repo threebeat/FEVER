@@ -7,7 +7,22 @@ namespace fever {
 struct Cue {std::string id,text,direction;Speaker speaker;Bus bus;float duration;int priority;};
 std::vector<Cue> readScript(const std::string& path);
 struct Subtitle {std::string id;std::string text;Speaker speaker=Speaker::Dispatch;float left=0;};
+struct Contact {V p,origin;int kind;float hp,clock=0,flinch=0;bool awake=false;};
 struct Game {
+    Recording recording=Recording::Animal;std::array<Weapon,3> loadout{Weapon::Auto,Weapon::Pistol,Weapon::Knife};
+    Weapon weapon()const{return loadout[slot];}const WeaponSpec& handling()const{return spec(weapon());}
+    std::vector<Box> animalSolids;std::vector<Contact> contacts;
+    int beat=0,selection=0,plateHits=0,tetherActor=-1,greyHits=0;std::array<float,6> plates{};
+    float beatAge=0,fieldTime=0,aggro=0,phaseOut=0,watched=0,tether=0;
+    float viewKick=0,fireBuffer=0,ejectIn=-1,slide=0,runGrace=0,blast=0;
+    bool cellarKey=false,uv=false,dragged=false,projectile=false;
+    V projectilePos{},projectileVelocity{},blastPos{};
+    void start(Recording,Stage checkpoint=Stage::Flight,int savedBeat=0);
+    void buildCall();void patrolTick(const Input&,const Prefs&,float);
+    void fieldTick(const Input&,float);void fieldCrew(float);void choose(int);
+    bool fieldHit(V,V,float&,float);void grenadeTick(float);
+    float ground(V)const;V vehicle()const;V muzzle()const;
+    std::string prompt(bool pad)const;const char* voiceName(Speaker)const;
     Body body;float idleTime=0,sprintWeight=0,reloadDuration=1.45f;bool reloadEmpty=false,reloadSeated=false;
     Particles particles;Tuning tuning;Brain hostBrain;V hostVelocity{};float hostFlinch=0;
     Stage stage=Stage::Flight; float time=0,age=0,stageStart=0,door=0;
@@ -32,7 +47,6 @@ struct Game {
     float wallDistance(V from,V dir)const;
     V lashPoint(float t)const;
     V aimRay()const;
-    V craft()const;
     void shoot(bool ally=false,int index=0);
     void moveCrew(float dt);
     void tickScript(float dt);

@@ -1,3 +1,4 @@
+#include <filesystem>
 #include "renderer.hpp"
 #include "materials.hpp"
 #include <fstream>
@@ -127,10 +128,8 @@ void Renderer::init(HWND window,const Game& g,bool probe){
     D3D11_INPUT_ELEMENT_DESC quads[]={{"POSITION",0,DXGI_FORMAT_R32G32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0},{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,8,D3D11_INPUT_PER_VERTEX_DATA,0},{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,16,D3D11_INPUT_PER_VERTEX_DATA,0},{"TEXCOORD",1,DXGI_FORMAT_R32_FLOAT,0,32,D3D11_INPUT_PER_VERTEX_DATA,0}};
     check(device->CreateInputLayout(quads,4,ui->GetBufferPointer(),ui->GetBufferSize(),&uiLayout),"Menu vertex format");
     for(auto& it:buildWorld(g))meshes.emplace(it.first,bake(it.second));
-    for(auto id:{"reed-thigh","reed-shin","reed-boot","reed-coat","reed-shoulders","aircraft","rotor","bench-officer","rope-officer","patient","officer","operator","medic","medic-down","hound","sleeping-dog","infected","carbine","pistol","knife","hardware"})
-        meshes.emplace(id,bake(readMesh(std::string("assets/meshes/")+id+".fvm")));
-    for(auto id:{"reed-thigh","reed-shin","reed-boot","reed-coat","reed-shoulders","officer","operator","medic","medic-down","patient","hound","sleeping-dog","infected","carbine","pistol","knife"}){
-        std::string key=std::string(id)+"-low";meshes.emplace(key,bake(readMesh("assets/meshes/"+key+".fvm")));
+    for(const auto& entry:std::filesystem::directory_iterator("assets/meshes")){
+        auto path=entry.path();if(path.extension()==".fvm")meshes.emplace(path.stem().string(),bake(readMesh(path.string())));
     }
     auto properties=readMaterials("assets/materials.tsv");materialUB=buffer(sizeof(properties),D3D11_BIND_CONSTANT_BUFFER,properties.data());
     material=tiledDDS("assets/surfaces.dds");surfaceResponse=tiledDDS("assets/response.dds");labels=texture(L"assets/plaques.jpg",false);font=texture(L"assets/lettering.png",false);cover=texture(L"assets/title.jpg",false);
@@ -175,22 +174,21 @@ void Renderer::draw(HWND window,const Game& g,const Prefs& prefs,const Menu& men
     ID3D11SamplerState* ss[]={repeat.Get(),linear.Get(),point.Get()};ctx->PSSetSamplers(0,3,ss);
     bool game=menu.page==Page::Playing||menu.page==Page::Pause||menu.page==Page::Lost||menu.page==Page::Filed||((menu.page==Page::Options||menu.page==Page::Controls)&&menu.back==Page::Pause);
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);ctx->RSSetState(rasterizer.Get());
-    float clear[]={.022f,.031f,.039f,1};ctx->OMSetBlendState(nullptr,nullptr,~0u);
+    float clear[]={.010f,.016f,.023f,1};if(g.recording==Recording::Grey){clear[0]=.019f;clear[1]=.028f;clear[2]=.039f;}ctx->OMSetBlendState(nullptr,nullptr,~0u);
     if(game){
         V az=forward(g.camYaw,g.camPitch),ax=right(g.camYaw),ay=norm(cross(az,ax)),rx=ax*std::cos(g.camRoll)+ay*std::sin(g.camRoll),ry=norm(cross(az,rx));
         V light=g.camera+right(g.yaw)*.077f+V{0,.055f,0},lz=g.aimRay(),lx=right(g.yaw),ly=norm(cross(lz,lx));
-        float aspect=float(sw)/sh,hfov=mix(g.tuning.fov,86,g.aim)*pi/180,sx=1/std::tan(hfov/2);FrameBlock frame{};
+        float aspect=float(sw)/sh,hfov=mix(g.tuning.fov,g.handling().fov,g.aim)*pi/180,sx=1/std::tan(hfov/2);FrameBlock frame{};
         frame.eye=pack(g.camera);frame.side=pack(rx);frame.up=pack(ry);frame.ahead=pack(az);frame.proj={sx,sx*aspect,100.f/99.965f,-3.5f/99.965f};
-        frame.raster={float(sw),float(sh),g.time,0};frame.control={prefs.psx?1.f:0.f,g.torch?1.f:0.f,g.flash,prefs.lens?g.tuning.warp:0.f};
+        frame.raster={float(sw),float(sh),g.time,g.uv?1.f:0.f};frame.control={prefs.psx?1.f:0.f,g.stage!=Stage::Flight&&(g.torch||g.uv)?1.f:0.f,g.flash,prefs.lens?g.tuning.warp:0.f};
         frame.motion={g.camRoll,prefs.grain?1.f:0.f,g.damageFlash,0};frame.origin=pack(light);frame.lx=pack(lx);frame.ly=pack(ly);frame.lz=pack(lz);
-        static const auto lights=lamps();for(int i=0;i<8;i++){frame.p[i]=pack(lights[i].p,lights[i].range);frame.c[i]=pack(lights[i].color);}
-        if(g.stage==Stage::Flight){frame.p[7]=pack(g.craft()+V{.41f,1.39f,.28f},3.2f);frame.c[7]={.88f,.055f,.025f,0};}
+        auto lights=callLights(g);for(int i=0;i<8;i++){frame.p[i]=pack(lights[i].p,lights[i].range);frame.c[i]=pack(lights[i].color);}
         meterClock+=dt;frame.motion.w=meterClock;ctx->UpdateSubresource(frameUB.Get(),0,nullptr,&frame,0,0);
         ID3D11Buffer* cb[]={frameUB.Get(),objectUB.Get()};ctx->VSSetConstantBuffers(0,2,cb);ctx->PSSetConstantBuffers(0,2,cb);ctx->PSSetConstantBuffers(2,1,materialUB.GetAddressOf());
         ctx->IASetInputLayout(worldLayout.Get());ctx->OMSetDepthStencilState(depthOn.Get(),0);
         auto drawList=[&](bool shadowPass){
             for(const auto& inst:sceneInstances(g,shadowPass)){
-                auto it=meshes.find(inst.id);const auto& b=it->second;const auto& p=inst.pose;
+                auto it=meshes.find(inst.id);if(it==meshes.end())throw std::runtime_error("Missing scene asset "+inst.id);const auto& b=it->second;const auto& p=inst.pose;
                 V center=p.p+p.x*b.center.x+p.y*b.center.y+p.z*b.center.z;
                 V rel=center-(shadowPass?light:g.camera);
                 float z=dot(rel,shadowPass?lz:az),x=std::abs(dot(rel,shadowPass?lx:rx)),y=std::abs(dot(rel,shadowPass?ly:ry));
@@ -208,7 +206,7 @@ void Renderer::draw(HWND window,const Game& g,const Prefs& prefs,const Menu& men
                 drawBatch(it->second,p);
             }
         };
-        if(g.torch){
+        if(g.stage!=Stage::Flight&&(g.torch||g.uv)){
             viewport(768,768);ctx->RSSetState(shadowRasterizer.Get());ctx->OMSetRenderTargets(0,nullptr,shadowDepth.Get());ctx->ClearDepthStencilView(shadowDepth.Get(),D3D11_CLEAR_DEPTH,1,0);
             ctx->VSSetShader(shadowVS.Get(),nullptr,0);ctx->PSSetShader(nullptr,nullptr,0);drawList(true);
         }

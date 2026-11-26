@@ -3,6 +3,7 @@
 #include "scene.hpp"
 #include "materials.hpp"
 #include "ui.hpp"
+#include "night.hpp"
 #include <cassert>
 #include <iostream>
 #include <fstream>
@@ -22,12 +23,12 @@ void walk(Game& g,V goal,bool run=false){
     throw std::runtime_error("Route blocked at "+std::to_string(g.pos.x)+"/"+std::to_string(g.pos.z)+" stage "+std::to_string(int(g.stage)));
 }
 void titleAndData(){
-    auto script=readScript("docs/DIALOGUE.md");REQUIRE(script.size()==15);Game g(script);
+    auto script=readScript("docs/DIALOGUE.md");REQUIRE(script.size()==38);Game g(script);
     REQUIRE(loadTuning("assets/shift.cfg",g.tuning));REQUIRE(g.tuning.resume<g.tuning.wait);
-    Menu m;m.build(g,{},false,16.f/9,0,false);REQUIRE(m.confirm()==Command::Start);m.navigate(1);REQUIRE(m.confirm()==Command::Options);
+    Menu m;m.build(g,{},false,16.f/9,0,false);REQUIRE(m.confirm()==Command::Start);m.navigate(1);REQUIRE(m.confirm()==Command::Archive);
     m.page=Page::Options;m.selected=0;m.build(g,{},false,16.f/9,0,false);REQUIRE(m.confirm()==Command::Profile);
     for(auto fn:{"pistol","officer","patient","hound","carbine"}){auto mesh=readMesh(std::string("assets/meshes/")+fn+".fvm");REQUIRE(mesh.indices.size()>2000);}
-    REQUIRE(buildWorld(g).size()==7);
+    auto sets=buildWorld(g);for(const char* id:{"lake-street","la-kitchen","snow-road","annex","steering"})REQUIRE(sets.at(id).indices.size()>50);
 }
 void patrolAndIncident(){
     Game g(readScript("docs/DIALOGUE.md"));wait(g,24);REQUIRE(g.door>.98f);REQUIRE(g.stage==Stage::Apron);
@@ -39,8 +40,8 @@ void patrolAndIncident(){
     wait(g,18);REQUIRE(g.stage==Stage::Recovery&&g.crewShots>0);
     walk(g,{1.15f,0,39.9f});walk(g,{1.1f,0,42.4f});wait(g,9);REQUIRE(g.stage==Stage::Exposure);
     for(int i=0;i<6&&g.stage==Stage::Exposure;i++){auto dir=norm(g.host+V{0,1.02f,0}-g.camera);g.yaw=std::atan2(dir.x,dir.z);g.pitch=std::asin(dir.y);g.shoot();wait(g,.24f);}
-    REQUIRE(g.stage==Stage::Report);walk(g,{3.2f,0,48.15f});Input e;e.interact=true;g.tick(e,{},dt);REQUIRE(g.stage==Stage::Filed);
-    wait(g,16);REQUIRE(std::find(g.spoken.begin(),g.spoken.end(),"R6_015")!=g.spoken.end());
+    REQUIRE(g.stage==Stage::Report);walk(g,{.4f,0,48.15f});walk(g,{.3f,0,52});walk(g,{1,0,65.2f},true);Input e;e.interact=true;g.tick(e,{},dt);REQUIRE(g.stage==Stage::Filed);
+    wait(g,16);REQUIRE(std::find(g.spoken.begin(),g.spoken.end(),"MI_015")!=g.spoken.end());
     g.restart(Stage::Recovery);REQUIRE(g.door==1&&g.pos.z>32&&g.stage==Stage::Recovery);
     g.hp=1;g.enter(Stage::Exposure);g.age=3;g.host=g.pos+V{.4f,0,.1f};g.tick({}, {},dt);REQUIRE(g.stage==Stage::Lost);
 }
@@ -74,6 +75,57 @@ void cameraAndHandling(){
     change.weapon=1;g.tick(change,{},dt);REQUIRE(g.mag[0]==24 && !g.reloadSeated);
     g.mag[1]=4;g.tick(r,{},dt);REQUIRE(g.reloadDuration<partial);
 }
+void pressUse(Game& g){Input i;i.interact=true;g.tick(i,{},dt);}
+void nightCalls(){
+    Game g(readScript("docs/DIALOGUE.md"));g.start(Recording::House);
+    wait(g,4);REQUIRE(g.stage==Stage::Flight);REQUIRE(!g.spoken.empty());wait(g,12);
+    walk(g,{0,0,-2});wait(g,4.7f);REQUIRE(g.door>.95f);
+    for(V p:{V{0,0,7},V{0,0,14.8f},V{5.9f,0,15},V{12.3f,0,15},V{16,0,16.8f},V{16,0,23.3f}})walk(g,p,true);
+    REQUIRE(g.pos.y>3&&g.beat==3);pressUse(g);REQUIRE(g.cellarKey);
+    for(V p:{V{16,0,16.8f},V{16,0,15},V{12.3f,0,15},V{5.9f,0,15},V{.3f,0,15},V{0,0,19.3f}})walk(g,p,true);
+    pressUse(g);REQUIRE(g.beat==5);walk(g,{0,0,29},true);
+    for(int i=0;i<12&&g.beat==5;i++){V d=norm(g.contacts[3].p+V{0,1,0}-g.camera);g.yaw=std::atan2(d.x,d.z);g.pitch=std::asin(d.y);g.shoot();wait(g,.23f);}
+    if(g.beat!=6){auto& c=g.contacts[3];V line=c.p+V{0,1,0}-g.camera;
+        std::cerr<<"Cellar "<<int(g.stage)<<" officer "<<g.hp<<" rounds "<<g.mag[0]<<" witch "<<c.hp<<" awake "<<c.awake<<" pos "<<c.p.x<<","<<c.p.y<<","<<c.p.z<<" camera "<<g.camera.x<<","<<g.camera.y<<","<<g.camera.z<<" distance "<<len(line)<<" obstruction "<<g.wallDistance(g.camera,norm(line))<<"\n";}
+    REQUIRE(g.beat==6);walk(g,{1,0,37.5f},true);pressUse(g);REQUIRE(g.stage==Stage::Filed);
+    g.start(Recording::Grey);wait(g,15.4f);
+    walk(g,{0,0,14.2f},true);pressUse(g);REQUIRE(g.beat==2&&!g.dragged);
+    for(V p:{V{0,0,32},V{-3.9f,0,49.85f},V{-4,0,51},V{3.8f,0,51},V{3.8f,0,54.6f},V{-3.8f,0,54.6f},V{-3.8f,0,58.1f},V{3.45f,0,58.1f}})walk(g,p);
+    REQUIRE(g.pos.y>4.5f);pressUse(g);REQUIRE(g.stage==Stage::Filed&&!g.dragged);
+    g.start(Recording::Grey,Stage::Apron,2);g.aggro=.89f;g.contacts[0].awake=true;g.contacts[0].p=g.pos+V{0,0,2.75f};wait(g,4.4f);REQUIRE(g.dragged&&g.beat==3);
+    walk(g,{42,0,54},true);pressUse(g);REQUIRE(g.beat==4);wait(g,17);REQUIRE(g.stage==Stage::Filed);
+}
+void handlingRange(){
+    Game g;g.start(Recording::Range,Stage::Apron);const Weapon list[]={Weapon::Auto,Weapon::Hunting,Weapon::Semi,Weapon::Sniper,Weapon::Pistol,Weapon::Knife,Weapon::Launcher};
+    for(int k=0;k<7;k++){Input key;key.weapon=k;g.tick(key,{},dt);REQUIRE(g.weapon()==list[k]);}
+    Input grip;grip.fire=true;g.choose(4);g.tick(grip,{},dt);int shots=g.shots;
+    for(int i=0;i<50;i++)g.tick(grip,{},dt);REQUIRE(g.shots==shots);
+    g.tick({}, {},dt);g.choose(0);for(int i=0;i<50;i++)g.tick(grip,{},dt);REQUIRE(g.shots>=shots+4);
+    Input run;run.sprint=true;run.walk=1;for(int i=0;i<50;i++)g.tick(run,{},dt);REQUIRE(g.sprintWeight>.7f);
+    grip.aim=true;g.tick(grip,{},dt);for(int i=0;i<9;i++)g.tick(grip,{},dt);REQUIRE(g.aim>.9f&&g.sprintWeight<.3f);
+    g.choose(1);g.tick({}, {},dt);g.particles.clear();g.tick(grip,{},dt);
+    auto cases=[&](){auto& all=g.particles.all();return std::count_if(all.begin(),all.end(),[](auto& p){return p.kind==ParticleKind::Casing&&p.life>0;});};
+    REQUIRE(cases()==0);wait(g,.48f);REQUIRE(cases()>0);
+    g.choose(6);g.pitch=-.25f;g.tick(grip,{},dt);REQUIRE(g.projectile);wait(g,1.8f);REQUIRE(!g.projectile);
+    g.choose(4);g.tick({}, {},dt);V d=norm(platesAt[1]-g.camera);g.yaw=std::atan2(d.x,d.z);g.pitch=std::asin(d.y);g.shoot();REQUIRE(g.plateHits>=1);
+}
+void inputTiming(){
+    Particles ejected;std::vector<Event> landings;ejected.eject({0,1.2f,0},{1,0,0},0,false);
+    for(int j=0;j<155;j++)ejected.update(dt,landings);REQUIRE(landings.size()==1&&landings[0].sound==Sound::Brass&&landings[0].pos.y<.03f);
+    REQUIRE(len(radialStick(.06f,.04f,.13f))==0);V diagonal=radialStick(.71f,.71f,.13f);
+    REQUIRE(std::abs(diagonal.x-diagonal.z)<.0001f&&std::abs(len(diagonal)-1)<.001f);
+    V outer=stickTurn({1,0,0},1,1);
+    for(int rate:{30,60,144}){V full{};for(int i=0;i<rate;i++)full=full+stickTurn({1,0,0},1.f/rate,1);REQUIRE(len(outer-full)<.0001f);}
+    REQUIRE(stickTurn(radialStick(.30f,0,.13f),1,1).x<outer.x*.085f);
+    Game g;g.start(Recording::Range,Stage::Apron);g.choose(4);
+    Input press;press.fire=true;press.firePressed=true;g.tick(press,{},dt);REQUIRE(g.shots==1);
+    wait(g,.10f);g.tick(press,{},dt);wait(g,.12f);REQUIRE(g.shots==2);
+    g.choose(1);g.tick(press,{},dt);REQUIRE(g.shots==3);
+    wait(g,.09f);g.tick(press,{},dt);wait(g,.90f);REQUIRE(g.shots==3);
+    Input ads;ads.aim=true;for(int j=0;j<9;j++)g.tick(ads,{},dt);REQUIRE(g.aim>.9f);wait(g,.11f);REQUIRE(g.aim<.1f);
+    Input run;run.walk=1;run.sprint=true;for(int j=0;j<60;j++)g.tick(run,{},dt);Input low;low.crouch=true;g.tick(low,{},dt);REQUIRE(g.slide>.35f);
+    g.tick(ads,{},dt);REQUIRE(g.slide==0);
+}
 void audio(){
     auto rightSource=acousticPath({0,1,15},0,Zone::Kennels,{2,1,16},Bus::World,1);REQUIRE(rightSource.right>rightSource.left);
     auto outside=acousticPath({0,1,-1},0,Zone::Yard,{0,1,2},Bus::World,1),closed=acousticPath({0,1,-1},0,Zone::Yard,{0,1,2},Bus::World,0);REQUIRE(closed.cutoff<outside.cutoff&&closed.left<outside.left);
@@ -83,7 +135,7 @@ void audio(){
     REQUIRE(fabric.cutoff<glass.cutoff&&glass.cutoff<steel.cutoff);
     REQUIRE(steel.send>outside.send);
     Mixer m;auto list=readScript("docs/DIALOGUE.md");m.loadTakes("tests/missing-takes",list);REQUIRE(m.recordedTakes()==0);
-    std::array<int16_t,1024> out{};MixState state;m.play({Sound::Voice,{},Bus::World,1,Speaker::Cole,"R6_004"});m.render(out.data(),512,state);
+    std::array<int16_t,1024> out{};MixState state;m.play({Sound::Voice,{},Bus::World,1,Speaker::Cole,"MI_004"});m.render(out.data(),512,state);
     REQUIRE(std::all_of(out.begin(),out.end(),[](auto x){return x==0;}));m.play({Sound::Round,{},Bus::Body,1});
     m.render(out.data(),512,state);REQUIRE(std::any_of(out.begin(),out.end(),[](auto x){return std::abs(x)>1000;}));
     REQUIRE(m.overloadLevel()>.7f);
@@ -104,18 +156,18 @@ void audio(){
     // A commissioned take follows the same timed cue and the actor's position.
     auto folder=std::filesystem::temp_directory_path()/"fever-voice-fixture";
     std::filesystem::create_directories(folder);
-    {std::ofstream take(folder/"R6_004.wav",std::ios::binary);
+    {std::ofstream take(folder/"MI_004.wav",std::ios::binary);
         uint32_t n=3*48000*2;auto u32=[&](uint32_t v){take.write((char*)&v,4);};auto u16=[&](uint16_t v){take.write((char*)&v,2);};
         take.write("RIFF",4);u32(36+n);take.write("WAVEfmt ",8);u32(16);u16(1);u16(1);u32(48000);u32(96000);u16(2);u16(16);take.write("data",4);u32(n);
         for(int j=0;j<3*48000;j++)u16(int16_t(8500*std::sin(j*.05f)));
     }
     Mixer voiced;voiced.loadTakes(folder.string(),list);REQUIRE(voiced.recordedTakes()==1);
-    auto line=std::find_if(list.begin(),list.end(),[](const auto& c){return c.id=="R6_004";});REQUIRE(line!=list.end()&&line->duration>=3);
+    auto line=std::find_if(list.begin(),list.end(),[](const auto& c){return c.id=="MI_004";});REQUIRE(line!=list.end()&&line->duration>=3);
     state={};state.room=Zone::Kennels;state.listener={0,1,18};state.crew[0]={1.2f,1,18};
-    voiced.play({Sound::Voice,{},Bus::World,1,Speaker::Cole,"R6_004"});voiced.render(out.data(),512,state);
+    voiced.play({Sound::Voice,{},Bus::World,1,Speaker::Cole,"MI_004"});voiced.render(out.data(),512,state);
     int left=0,right=0;for(int j=0;j<512;j++){left+=std::abs(out[j*2]);right+=std::abs(out[j*2+1]);}REQUIRE(right>left*2);
-    std::filesystem::remove(folder/"R6_004.wav");std::filesystem::remove(folder);
+    std::filesystem::remove(folder/"MI_004.wav");std::filesystem::remove(folder);
 
 }
 }
-int main(){try{titleAndData();navigation();patrolAndIncident();cameraAndHandling();audio();std::cout<<"Relay Six native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
+int main(){try{titleAndData();navigation();patrolAndIncident();cameraAndHandling();nightCalls();handlingRange();inputTiming();audio();std::cout<<"Three recording routes, both Grey endings, seven weapons and native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

@@ -111,10 +111,10 @@ export function launcherBody(m,pose){
   linked(m,[[.042,.012,.144],[.066,-.017,.167],[.065,-.035,.197],[.041,-.045,.205]],.004,p.webDark,8,6);
   screw(m,-1,.070,.029,-.233,.0085);
  }
- if(pose.exchanging&&pose.reload>.255&&pose.reload<.747){
+ if(!pose.stableMesh&&pose.exchanging&&pose.reload>.255&&pose.reload<.747){
   const round=launcherRound(pose);roundMesh(m,round.base,round.axis);
  }
- if(pose.exchanging&&pose.reload>.17&&pose.reload<.35){
+ if(!pose.stableMesh&&pose.exchanging&&pose.reload>.17&&pose.reload<.35){
   const t=(pose.reload-.17)/.18;
   const pos=plus(forwardShell(pose,[0,.051,-.020]),[-.10*t,.065*t-.16*t*t,.13*t]);
   roundMesh(m,pos,[-.050*t,-.035*t,-.099],true);
