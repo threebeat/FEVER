@@ -553,7 +553,7 @@ function ally(m,q,police=false,role='') {
   const skin=police?[.53,.405,.32]:ranger?[.494,.352,.274]:medic?[.49,.395,.325]:scout?[.389,.282,.201]:[.54,.451,.354];
   const skinShadow=police?[.39,.298,.241]:medic?[.348,.277,.228]:scout?[.28,.205,.159]:[.414,.342,.28];
   const y=-.025*double-.29*fall-.077*sting-.385*aid-.137*rappel-.326*land-.058*struggle;
-  const hips=[-.092*fall+.031*swing+.047*kick*struggle,.94+y,-.02+.07*fall+.096*aid+.112*rappel+.098*land];
+  const hips=[-.092*fall+.031*swing+.047*kick*struggle,.94+y-.25*(q.seated?1:0),-.02+.07*fall+.096*aid+.112*rappel+.098*land];
   const chest=offset(hips,.031*swing+.175*fall-.077*sting-.044*kick*struggle+.028*rappel*breath,.37+.012*breath-.067*aid-.055*land,
     .008+.071*strike-.12*fall+.048*q.move+.137*aid-.125*rappel+.074*land-.13*struggle);
   const struckLeg=hit?.[0]?.endsWith('Leg'),struckHead=hit?.[0]==='head';
@@ -592,6 +592,10 @@ function ally(m,q,police=false,role='') {
     if(aid){
       knee[1]-=(s>0?.25:.079)*aid;knee[2]+=(s>0?.09:.215)*aid;
       foot[2]+=(s>0?-.29:.261)*aid;
+    }
+    if(q.seated){
+      knee.splice(0,3,s*.154,.63,.34+s*.026);
+      foot.splice(0,3,s*.163,.405,.51+s*.039);
     }
     const leg=m.tagJoint?.(s<0?'leftLeg':'rightLeg')||m;
     if(struckLeg&&hit[0]===(s<0?'leftLeg':'rightLeg')){knee[2]+=.16*weight;knee[1]-=.06*weight;foot[2]-=.078*weight;}
@@ -643,7 +647,7 @@ function ally(m,q,police=false,role='') {
   else{
   line(m,offset(chest,0,.125,.011),offset(head,0,-.067,0),.076,.065,police?skinShadow:iron,6,q.photo&&police?11:0);
   if(struckHead){head[0]+=.078*hit[1]*weight;head[2]+=.072*hit[2]*weight;}
-  const face=insetMesh(m.tagJoint?.('head')||m,head,(hit?hit[1]*weight*(struckHead?.52:.14):0)+.13*Math.sin(t*tau-.72)*(1-.59*tell)+.17*fall+.24*kick*struggle,
+  const face=insetMesh(m.tagJoint?.('head')||m,head,(hit?hit[1]*weight*(struckHead?.52:.14):0)-.94*(q.passengerLook||0)+.13*Math.sin(t*tau-.72)*(1-.59*tell)+.17*fall+.24*kick*struggle,
     .037*breath-(q.pose==='skywatch'?.36:0)+(q.pose==='mapPoint'||q.pose==='mapStudy'?.50:0)+.32*fall+.40*aid+.26*rappel+.31*land-.35*struggle+(hit?hit[2]*weight*(struckHead?.43:.12):0),-.043+.31*fall+.053*sting+.23*struggle*pull+(hit?hit[1]*weight*.25:0));
   if(q.photo)portrait(face,skin,skinShadow,role||(police?'officer':'ally'),breath);
   else shell(face,[0,0,0],[[-.114,.067,.075,0,.027],[-.045,.102,.099],[.042,.112,.105],[.102,.080,.077]],skin,7);
@@ -714,7 +718,7 @@ function ally(m,q,police=false,role='') {
   const raise=Math.max(tell,q.attack?.94:0)*(1-fall),flinch=fall*(1-fall)*4;
   const atMap=q.pose==='mapPoint'||q.pose==='mapStudy';
   const issued=q.issuedWeapon||(!search?(scout?'carbine':'pistol'):null);
-  const armed=!!issued&&!q.hideWeapon&&!atMap&&aid<.52&&!struggle&&!rappel&&land<.26;
+  const armed=!!issued&&!q.holstered&&!q.hideWeapon&&!atMap&&aid<.52&&!struggle&&!rappel&&land<.26;
   const sidearm=issued!=='carbine';
   const yaw=-.07-(scout?.37:.13)*(1-raise)+.028*swing;
   const pitch=.61*(1-raise)-.14*strike+.039*q.move*double+.44*fall;
@@ -730,6 +734,10 @@ function ally(m,q,police=false,role='') {
       -.035+stride*.091+.055*raise-.13*fall+.084*aid);
     let hand=armed?(s<0?grip:foregrip):offset(elbow,s*(-.023-.145*aid+.089*fall),-.172+.179*aid+.088*fall,
       .101+.202*aid+stride*.070-.11*fall);
+    if(q.seated){
+      elbow[0]=chest[0]+s*.253;elbow[1]=chest[1]-.155;elbow[2]=chest[2]+.015;
+      hand=offset(hips,s*.145,.101+(s<0?.034:0),.235+s*.025);
+    }
     if(q.pose==='keypad'&&s>0){
       const reach=smooth(clamp01(t/.23))*(1-smooth(clamp01((t-.74)/.25)));
       const tap=.020*Math.sin(t*tau*4.4)*reach;
@@ -768,13 +776,17 @@ function ally(m,q,police=false,role='') {
     box(m,patch,.015,.057,.073,police?cloth:trim);
     box(m,offset(patch,s*.010,.002,0),.006,.019,medic?.068:.043,medic?[.57,.124,.13]:outer);
     if(medic)box(m,offset(patch,s*.011,.002,0),.007,.047,.022,[.57,.124,.13]);
-    if(armed&&s<0)crewWeapon(insetMesh(m,hand,yaw,pitch),sidearm,cloth,q.photo);
+    if(armed&&s<0&&!q.patrolPartner)crewWeapon(insetMesh(m,hand,yaw,pitch),sidearm,cloth,q.photo);
     if(aid>.55&&s<0&&!q.stableMesh){
       box(m,offset(hand,.011,-.031,.062),.11,.083,.122,trim);
       box(m,offset(hand,.011,-.031,.126),.074,.024,.009,medic?[.59,.167,.16]:cloth);
     }
   }
-  if(!armed&&!q.hideWeapon&&issued){
+  if(q.patrolPartner){
+    const mount=armed?insetMesh(m,grip,yaw,pitch):insetMesh(m,offset(hips,.185,-.014,.013),0,1.45);
+    crewWeapon(mount,true,cloth,q.photo);
+  }
+  if(!armed&&!q.hideWeapon&&!q.patrolPartner&&issued){
     if(sidearm)crewWeapon(insetMesh(m,offset(hips,-.163,.002,.012),0,1.42),true,cloth,q.photo);
     else{
       const sling=offset(chest,-.105,-.138,-.173);
@@ -845,6 +857,8 @@ export function buildEntity(mesh,kind,pose='idle',t=0,damage={}) {
   const draw=models[kind];if(!draw)return mesh;
   mesh.fineSkin=!!damage.photo;
   const q=motion(pose==='wallCrawl'?'move':pose,clamp01(t),damage);if(pose==='wallCrawl')q.pose=pose;q.photo=!!damage.photo;q.stableMesh=!!damage.stableMesh;q.legHits=(damage.wounds?.leftLeg?1:0)|(damage.wounds?.rightLeg?2:0);q.reaction=damage.reaction;q.hideWeapon=!!damage.hideWeapon;q.issuedWeapon=damage.issuedWeapon;q.writhe=damage.writhe??t;q.standing=damage.standing;
+  q.seated=!!damage.seated;q.passengerLook=damage.passengerLook||0;
+  q.patrolPartner=!!damage.patrolPartner;q.holstered=!!damage.holstered;q.attendant=!!damage.attendant;
   if(q.pose==='leap'&&(kind==='hound'||kind==='infected')){
     const part=insetMesh(mesh,[0,leapHeight(kind,q.t),0],0,0);
     draw(part,q);return mesh;

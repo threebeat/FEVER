@@ -17,7 +17,7 @@ for name, (_, count) in meshes.items():
         base = name[:-4]
         if base not in meshes or count >= meshes[base][1]:
             sys.exit(f'LOD did not reduce triangles: {name}')
-for name in ('carbine','pistol','officer','medic','hound','reed-boot'):
+for name in ('carbine','pistol','cole-passenger','cole-patrol','kennel-attendant','hound','reed-boot'):
     print(f'{name:12} {meshes[name][1]:6,} near  {meshes[name+"-low"][1]:6,} low')
 
 resident = 0

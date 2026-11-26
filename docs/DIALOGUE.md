@@ -6,23 +6,23 @@ The game reads these tables directly. Each cue has a stable recording ID. The se
 
 | Cue ID | Speaker | Path | Seconds | Priority | Line | Trigger and delivery |
 | --- | --- | --- | ---: | ---: | --- | --- |
-| MI_001 | DISPATCH | radio | 4.1 | 2 | Seventeen, disturbance at Animal Control. Eighteen Lake Street. Staff member called from inside. | Over the cruiser speaker. Dispatch reads the address first, then listens. |
-| MI_002 | REED | radio | 3 | 2 | Seventeen copies. I'm two blocks out. Did she say who was with her? | From the driver’s seat. Keep the question conversational. |
-| MI_003 | DISPATCH | radio | 3.1 | 2 | She put the phone down. We can still hear the kennels. | At the curb. Dispatch is still monitoring the open line. |
+| MI_001 | DISPATCH | radio | 4.1 | 2 | Seventeen, eighteen Lake Street. Animal Control. Night attendant called and left the line open. | Reed is driving. Dispatch has the call up on her screen. |
+| MI_002 | COLE | world | 2.5 | 2 | That's Eddie's shift. He uses the side door. | From the front passenger seat. Cole looks over at Reed. |
+| MI_003 | REED | radio | 2.2 | 2 | Seventeen, we're out at eighteen Lake. | Reed clears the driver's door. |
 | MI_004 | COLE | world | 2.0 | 2 | I've got the door. | At the intake panel. Occupied with the latch. |
-| MI_005 | BELL | world | 2.8 | 1 | Cole. These kennel cards have times of death. | At the numbered cards inside intake. Quiet discovery. |
-| MI_006 | IVES | world | 2.6 | 1 | Stop order's signed. The pumps are still running. | Passing the infusion log in the kennel aisle. Clinical concern. |
-| MI_007 | BELL | world | 1.2 | 4 | On the left! | The moving kennel latch. Sudden, directional warning. |
-| MI_008 | COLE | world | 1.7 | 3 | It's pulling back. Let it. | After the appendage recoils behind the mesh. Speaking to Reed. |
-| MI_009 | IVES | world | 2.1 | 2 | There's a man on the floor. | Ives sees the patient through the isolation entrance. |
-| MI_010 | IVES | world | 2.8 | 2 | Sir? I'm a paramedic. Can you open your eyes? | At the patient's shoulder. Close, level, loud enough for him alone. |
-| MI_011 | BELL | world | 1.8 | 3 | Ives. Your sleeve. | Something has crossed from the patient to the medic. Disbelief. |
-| MI_012 | COLE | world | 1.6 | 4 | Back up, Reed. | Ives stands and turns. Short and involuntary. |
-| MI_013 | COLE | world | 3.0 | 2 | Wall set's got power. Try County. | The room falls quiet. Exhausted. |
+| MI_005 | REED | world | 2.8 | 1 | Cole. These kennel cards have times of death. | Low, as Reed passes the numbered cards inside intake. |
+| MI_006 | COLE | world | 2.6 | 1 | This one's dated yesterday. The pump's still on. | At the infusion log in the kennel aisle. |
+| MI_007 | COLE | world | 1.2 | 4 | On the left! | The moving kennel latch. Sudden, directional warning. |
+| MI_008 | COLE | world | 1.7 | 3 | It's pulling back. Let it. | After the appendage recoils behind the mesh. |
+| MI_009 | COLE | world | 2.1 | 2 | Reed. That's Eddie's jacket. | In the isolation doorway. Cole recognizes the attendant on the floor. |
+| MI_010 | COLE | world | 2.6 | 2 | Eddie, it's Cole. Can you hear me? | Kneeling at his shoulder. Quiet enough to listen for a reply. |
+| MI_011 | REED | world | 1.4 | 3 | Cole. His hand. | Reed sees the attendant's fingers move. |
+| MI_012 | COLE | world | 1.6 | 4 | Back up, Reed. | Eddie gets up. Cole gets clear of the cart. |
+| MI_013 | COLE | world | 2.3 | 2 | That door goes out to Lake. | After the attendant falls, Cole looks toward the service exit. |
 | MI_014 | DISPATCH | radio | 2.6 | 2 | Seventeen, can you see Lake Street from the back of that building? | The first call from outside has come in. |
 | MI_015 | DISPATCH | radio | 3.5 | 2 | I have your location. The calls are coming in on both sides of the river now. | Final reply. Leave air after it. |
-| MI_016 | BELL | world | 2.2 | 2 | Reed. Look at the people at the bus stop. | Bell is watching the far sidewalk from the service exit. |
-| MI_017 | REED | radio | 3 | 3 | Dispatch, close Lake at Main. We have the same thing out here. | The player transmits from the street. |
+| MI_016 | COLE | world | 2.2 | 2 | Reed. The people at the bus stop. | Cole is watching the far sidewalk from the service exit. |
+| MI_017 | REED | radio | 3 | 3 | Dispatch, we're on Lake. It's out here too. | Reed transmits from the street with Cole beside him. |
 
 ## The Open Door · Cypress Parish, Louisiana
 

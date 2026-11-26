@@ -169,15 +169,13 @@ std::vector<Instance> sceneInstances(const Game& g,bool shadows){
     if(z>5)add("gate",{0,gate*2.63f,32.4f});
     if(z>22)add("hardware",{0,0,45.6f});
 
-    for(int i=0;i<3;i++){
-        if(i==1&&g.stage>=Stage::Exposure)continue;auto& a=g.crew[i];
-        std::string id=i==0?"officer":i==1?"medic":"operator";
-        if(g.stage==Stage::Flight)continue;
-        auto p=pose(a.pos,a.yaw,.5f+.46f*a.pace*std::sin(a.stride));
-        p.reaction=clamp(a.stun*2);
-        if(g.stage==Stage::Examination&&i==1)p.action=smooth(1.55f,.8f,len(flat(a.pos-Game::patient())));
-        else p.action=smooth(0,.11f,a.shot);
-        list.push_back({id,p,1+i});
+    if(g.stage!=Stage::Flight){
+        const auto& cole=g.crew.front();
+        Pose p=pose(cole.pos,cole.yaw,.5f+.46f*cole.pace*std::sin(cole.stride));
+        p.action=smooth(0,.11f,cole.shot);
+        if(g.stage==Stage::Examination)p.reaction=smooth(1.65f,.85f,len(flat(cole.pos-Game::patient())));
+        if(cole.stun>0){p.morph=0;p.action=p.reaction=0;p.bolt=clamp(cole.stun*2);}
+        list.push_back({"cole-patrol",p,1});
     }
     for(int i=0;i<7;i++){float zz=14.f+i*3.24f;float x=i%2?-4.15f:4.10f;if(std::abs(z-zz)<25)add("sleeping-dog",{x,.29f,zz},i*.71f,4+i);}
     float wake=g.stage==Stage::Lash?smooth(0,.62f,g.age):0;
@@ -186,10 +184,19 @@ std::vector<Instance> sceneInstances(const Game& g,bool shadows){
         p.action=g.lashAmount;p.reaction=g.lashHP<=0?g.lashAmount:0;
         list.push_back({wake>.15f?"hound":"sleeping-dog",p,11});
     }
-    if(z>18){add("patient",Game::patient(),-.6f,12);
-        if(g.stage==Stage::Exposure){Pose p=pose(g.host,std::atan2(g.pos.x-g.host.x,g.pos.z-g.host.z),.5f+.45f*std::sin(g.time*7));
-            p.kneel=1-smooth(.8f,2.5f,g.age);p.reaction=g.hostFlinch;list.push_back({g.age<1.5f?"medic":"infected",p,13});}
-        if(g.stage>=Stage::Report&&g.stage!=Stage::Lost)add("medic-down",g.host,.9f,14);}
+    if(z>18){
+        bool active=g.stage==Stage::Exposure,down=g.hostHP<=0;
+        float upright=active?smooth(.45f,2.25f,g.age):down&&g.stage==Stage::Report?1-smooth(0,.62f,g.age):0;
+        float facing=active?std::atan2(g.pos.x-g.host.x,g.pos.z-g.host.z):g.hostFacing;
+        facing=-.60f+wrap(facing+.60f)*(active?smooth(.75f,2.2f,g.age):down?1.f:0.f);
+        V pos=active||down?g.host:Game::patient();
+        float angle=(1-upright)*1.53f;V along=forward(facing),up{0,1,0};
+        Pose p=pose(pos+up*(.24f*(1-upright))+along*(.72f*(1-upright)),facing);
+        p.y=up*std::cos(angle)-along*std::sin(angle);p.z=up*std::sin(angle)+along*std::cos(angle);
+        p.morph=active?(.5f+.48f*std::sin(g.time*7))*upright:.28f;
+        p.action=active?(1-upright)*smooth(0,.55f,g.age):0;p.reaction=g.hostFlinch;
+        list.push_back({"kennel-attendant",p,12});
+    }
     }
     if(g.body.ready&&g.stage!=Stage::Flight&&g.stage!=Stage::Lost){
         const auto& body=g.body;
@@ -224,7 +231,7 @@ std::vector<Instance> sceneInstances(const Game& g,bool shadows){
         float quiet=1-smooth(0,.40f,g.pace);
         float breath=std::sin(g.time*(2.0f+.40f*g.stress))*(.0025f+.0025f*g.stress)*(1-.72f*g.aim);
         float fidget=g.idleTime>5?smooth(0,.8f,std::fmod(g.idleTime-5,9.2f))*(1-smooth(.9f,2.2f,std::fmod(g.idleTime-5,9.2f))):0;
-        p.idle=fidget*(g.slot==0?.44f:g.slot==1?.28f:.33f);
+        p.idle=fidget*(g.weapon()==Weapon::Knife?.33f:g.weapon()==Weapon::Pistol?.28f:.44f);
         p.bolt=g.handling().bolt&&g.shotDelay>0?std::sin(pi*clamp(1-g.shotDelay/g.handling().delay)):g.slot<2?std::max(g.kick*g.kick,(g.mag[g.slot]==0||g.reloadTime>0&&g.reloadEmpty)?1-smooth(.78f,.95f,phase)*(g.reloadTime>0?1.f:0.f):0.f):0.f;
         p.p=p.p+p.y*(breath*quiet-.042f*downward)+p.x*(.18f*downward);
         p.morph=g.aim;list.push_back({g.handling().mesh,p});
@@ -250,8 +257,8 @@ MeshData effectsMesh(const Game& g){
         b.face(a.p-x,a.p-y,a.p+x,a.p+y,c,spark?Warm:a.kind==ParticleKind::Droplet?Blood:Aggregate);}
     for(auto& h:g.marks){if(g.time-h.time>40)continue;V r=norm(cross(h.normal,std::abs(h.normal.y)>.9f?V{1,0,0}:V{0,1,0}))*.047f,u=norm(cross(h.normal,r))*.050f;
         b.face(h.pos-r-u,h.pos+r-u,h.pos+r+u,h.pos-r+u,ink,Aggregate);}
-    for(int i=0;i<3;i++)if(g.crew[i].shot>.056f){
-        V p=g.crew[i].pos+forward(g.crew[i].yaw)*.62f+V{0,1.32f,0};b.pipe(p,p+forward(g.crew[i].yaw)*.27f,.068f,0,{1,.76f,.38f},Warm);}
+    for(const auto& ally:g.crew)if(ally.shot>.056f){
+        V p=ally.pos+forward(ally.yaw)*.62f+V{0,1.32f,0};b.pipe(p,p+forward(ally.yaw)*.27f,.068f,0,{1,.76f,.38f},Warm);}
     return std::move(b.m);
 }
 }

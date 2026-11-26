@@ -296,7 +296,7 @@ function wearer(m,kind,q){
   }
   const warped=Object.create(m);warped.tri=(a,b,c,color,mat=0)=>world.tri(fold(a),fold(b),fold(c),color,mat);m=warped;
  }
- const coat=kind==='infected'?sand:kind==='golem'?tissue.torn:kind==='cultist'?smock:shawl;
+ const coat=q.attendant?[.255,.345,.322]:kind==='infected'?sand:kind==='golem'?tissue.torn:kind==='cultist'?smock:shawl;
  if(kind==='golem')m.golemRegions=[];
  shins(m,kind,q,r);
  if(!monster)skirt(m,q,r,kind==='witch'?wool:smock,kind==='witch'?shawl:hem,patched);
@@ -315,14 +315,23 @@ function wearer(m,kind,q){
  }
  const edgeX=b.chest*.73;
  if(kind==='infected'){
-  // One torn front pocket and dog tags remain recognizable as station fatigues.
+  // Work identification stays visible through the kennel attendant’s change.
   box(m,offset(chest,-edgeX*.73,.04,b.deep*.83),.111,.100,.039,olive,0,-.1);
   m.tri(offset(chest,edgeX*.13,.14,b.deep*.60),offset(chest,edgeX*.8,.084,b.deep*.87),offset(chest,edgeX*.38,-.044,b.deep*1.19),olive);
+  if(q.attendant){
+   const badge=offset(chest,-edgeX*.73,.04,b.deep*1.04);
+   box(m,badge,.081,.047,.008,[.73,.72,.61]);
+   box(m,offset(badge,-.022,0,.006),.018,.025,.004,[.28,.34,.32]);
+   for(const y of [.009,-.004])box(m,offset(badge,.012,y,.006),.031,.003,.004,soot);
+   const clip=offset(pelvis,.15,.005,.09);
+   for(let i=0;i<3;i++)line(m,offset(clip,.008*i,0,0),offset(clip,.016*i,-.065+.01*i,.018*i),.005,.004,edge,5);
+  }else{
   line(m,offset(chest,-edgeX*.48,.134,b.deep*.49),offset(chest,.019,.006,b.deep*1.08),.007,.006,iron,4);
   box(m,offset(chest,.023,-.022,b.deep*1.12),.037,.050,.006,edge,0,.13);
   for(const side of [-1,1]){
    box(m,offset(pelvis,side*b.waist*.77,-.015,b.deep*.44),.104,.117,.084,web,0,side*.22);
    line(m,offset(chest,side*edgeX,.09,b.deep*.54),offset(chest,side*edgeX*.85,-.16,b.deep*.84),.025,.021,web,4);
+  }
   }
   if(!(q.mask&8)){
   // A flap of fatigues has pulled away from the advancing parasite. The flap hangs below the belt.

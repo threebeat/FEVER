@@ -30,6 +30,42 @@ void titleAndData(){
     for(auto fn:{"pistol","officer","patient","hound","carbine"}){auto mesh=readMesh(std::string("assets/meshes/")+fn+".fvm");REQUIRE(mesh.indices.size()>2000);}
     auto sets=buildWorld(g);for(const char* id:{"lake-street","la-kitchen","snow-road","annex","steering"})REQUIRE(sets.at(id).indices.size()>50);
 }
+void michiganPartners(){
+    Game g(readScript("docs/DIALOGUE.md"));
+    auto one=[](const Game& call,const char* id){
+        auto items=sceneInstances(call);
+        return std::count_if(items.begin(),items.end(),[&](const Instance& i){return i.id==id;})==1;
+    };
+    for(const auto& c:g.script)if(c.id.rfind("MI_",0)==0)REQUIRE(c.speaker==Speaker::Cole||c.speaker==Speaker::Player||c.speaker==Speaker::Dispatch);
+    REQUIRE(g.crew.size()==1 && g.loadout.size()==1 && g.weapon()==Weapon::Pistol);
+    wait(g,2);REQUIRE(one(g,"cole-passenger") && !one(g,"cole-patrol"));
+    REQUIRE(g.crew.front().pos.x>g.pos.x+.65f);
+    auto audio=mixState(g,{},true);V mouth=g.source(Speaker::Cole);
+    REQUIRE(len(mouth-audio.crew[0])<.001f);
+    auto pan=acousticPath(g.camera,g.camYaw,g.room(),mouth,Bus::World,0);
+    REQUIRE(pan.right>pan.left*2);
+    wait(g,4);REQUIRE(g.subtitle.id=="MI_002" && g.subtitle.speaker==Speaker::Cole);
+    REQUIRE(dot(forward(g.camYaw,g.camPitch),norm(g.source(Speaker::Cole)-g.camera))>.72f);
+    Input look;look.dx=-1.7f;g.tick(look,{},dt);REQUIRE(g.camYaw<-1.3f);
+    while(g.age<14.9f)g.tick({}, {},dt);
+    V lastPassenger=g.crew.front().pos,parked=g.vehicle();
+    wait(g,.13f);REQUIRE(g.stage==Stage::Apron && g.passable(g.pos));
+    REQUIRE(len(g.vehicle()-parked)<.01f && len(g.crew.front().pos-lastPassenger)<.12f);
+    REQUIRE(one(g,"cole-patrol") && !one(g,"cole-passenger"));
+    for(auto stage:{Stage::Apron,Stage::Kennels,Stage::Recovery,Stage::Report}){
+        g.restart(stage);REQUIRE(g.crew.size()==1 && g.weapon()==Weapon::Pistol && g.loadout.size()==1);
+        REQUIRE(g.mag[0]==13 && g.reserve[0]==52 && g.mag[1]==0 && g.reserve[1]==0);
+        Input fire;fire.firePressed=true;g.tick(fire,{},dt);REQUIRE(g.shots==1 && g.mag[0]==12);
+        Input reload;reload.reload=true;g.tick(reload,{},dt);
+        for(int i:{1,2,5,-1}){Input change;change.weapon=i;change.cycle=i;g.tick(change,{},dt);}
+        g.choose(6);REQUIRE(g.weapon()==Weapon::Pistol && g.reloadTime>0);
+        wait(g,1.5f);REQUIRE(g.mag[0]==13 && g.reserve[0]==51);
+        if(stage==Stage::Report)REQUIRE(one(g,"kennel-attendant") && !one(g,"medic-down"));
+    }
+    g.start(Recording::House);REQUIRE(g.crew.size()==1 && g.loadout.size()==3);
+    g.start(Recording::Grey);REQUIRE(g.crew.size()==2 && g.loadout.size()==3);
+    g.start(Recording::Range);REQUIRE(g.crew.empty());
+}
 void patrolAndIncident(){
     Game g(readScript("docs/DIALOGUE.md"));wait(g,24);REQUIRE(g.door>.98f);REQUIRE(g.stage==Stage::Apron);
     walk(g,{0,0,5});REQUIRE(g.stage==Stage::Reception);
@@ -67,12 +103,13 @@ void cameraAndHandling(){
     REQUIRE(g.camPitch<-1.4f&&g.camera.y<1.f);
     for(auto& f:g.body.feet){REQUIRE(f.ankle.y>.08f&&f.ankle.y<.11f);REQUIRE(f.knee.y>f.ankle.y);}
     wait(g,7);REQUIRE(g.idleTime>6);
+    g.start(Recording::Grey,Stage::Apron);
     Input r;r.reload=true;Input change;change.weapon=1;
-    g.mag[0]=6;g.tick(r,{},dt);float partial=g.reloadDuration;int reserve=g.reserve[0];
-    wait(g,.31f);g.tick(change,{},dt);REQUIRE(g.mag[0]==6&&g.reserve[0]==reserve&&g.reloadTime==0);
+    g.mag[0]=2;g.tick(r,{},dt);float partial=g.reloadDuration;int reserve=g.reserve[0];
+    wait(g,.31f);g.tick(change,{},dt);REQUIRE(g.mag[0]==2&&g.reserve[0]==reserve&&g.reloadTime==0);
     change.weapon=0;g.tick(change,{},dt);g.mag[0]=0;g.tick(r,{},dt);REQUIRE(g.reloadEmpty && g.reloadDuration>partial);
-    wait(g,g.reloadDuration*.75f);REQUIRE(g.mag[0]==24 && g.reserve[0]==reserve-24);
-    change.weapon=1;g.tick(change,{},dt);REQUIRE(g.mag[0]==24 && !g.reloadSeated);
+    wait(g,g.reloadDuration*.75f);REQUIRE(g.mag[0]==5 && g.reserve[0]==reserve-5);
+    change.weapon=1;g.tick(change,{},dt);REQUIRE(g.mag[0]==5 && !g.reloadSeated);
     g.mag[1]=4;g.tick(r,{},dt);REQUIRE(g.reloadDuration<partial);
 }
 void pressUse(Game& g){Input i;i.interact=true;g.tick(i,{},dt);}
@@ -170,4 +207,4 @@ void audio(){
 
 }
 }
-int main(){try{titleAndData();navigation();patrolAndIncident();cameraAndHandling();nightCalls();handlingRange();inputTiming();audio();std::cout<<"Three recording routes, both Grey endings, seven weapons and native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}
+int main(){try{titleAndData();michiganPartners();navigation();patrolAndIncident();cameraAndHandling();nightCalls();handlingRange();inputTiming();audio();std::cout<<"Three recording routes, both Grey endings, seven weapons and native systems passed.\n";return 0;}catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}}

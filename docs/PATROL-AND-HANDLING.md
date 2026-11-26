@@ -1,6 +1,6 @@
 # FEVER · Patrol recordings and first-person handling
 
-Reed is already driving when dispatch assigns a disturbance at the municipal animal-control facility. Landry arrives at a Louisiana house in a separate car from her partner. A Vermont officer takes the service road to a cabin at a ski resort outside Stowe. Each wears a different recorder and is accountable for what they report. The range offers the same controls as the recordings.
+Reed is driving with Cole buckled into the front passenger seat when dispatch assigns a disturbance at the municipal animal-control facility. The two answer alone. Reed starts with a service pistol, a loaded 13-round magazine and four spare magazines. Landry arrives at a Louisiana house in a separate car from her partner. A Vermont officer takes the service road to a cabin at a ski resort outside Stowe. Each wears a different recorder and is accountable for what they report. The range offers the same controls as the recordings.
 
 ## Developer references and play tests
 
@@ -24,7 +24,7 @@ Livingston County routes animal complaints through central dispatch and requests
 
 | Recording | Officer and route | Resolution |
 | --- | --- | --- |
-| After Hours | Alex Reed. Port Mercer, Michigan. Downtown storefronts, municipal intake, holding pens, isolation room and the rear street. | Reach Lake Street and report infections on the next block. |
+| After Hours | Alex Reed drives and Cole rides beside him in Port Mercer, Michigan. On foot, follow Cole from intake to the holding pens. He recognizes the night attendant in isolation. The service exit opens onto Lake Street. | Reach Lake Street and report infections on the next block. |
 | The Open Door | Lucille Landry. Cypress Parish, Louisiana. Join Roy at the porch, investigate the sink, search upstairs for the cellar key and reach the hidden chamber. | Survive the witch and request medical aid beside the caller's mother. |
 | The Grey | Ellis Shaw. Switchback Ridge, outside Stowe, Vermont. Check the mechanic's cabin and take the wooded trail to the ridge relay. | Key the receiver from the upper landing. If dragged to the west cut, signal there and survive until rescue acknowledges. |
 
